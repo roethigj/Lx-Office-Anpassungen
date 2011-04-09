@@ -47,6 +47,7 @@
 
 use CGI::Ajax;
 use POSIX qw(strftime);
+use JSON;
 
 use SL::CT;
 use SL::CVar;
@@ -722,21 +723,28 @@ sub delete_contact {
 
 sub ajax_autocomplete {
   $main::lxdebug->enter_sub();
-
   my $form     = $main::form;
   my %myconfig = %main::myconfig;
-
-  $form->{column}          = 'name'     unless $form->{column} =~ /^name$/;
-  $form->{vc}              = 'customer' unless $form->{vc} =~ /^customer|vendor$/;
-  $form->{db}              = $form->{vc}; # CT expects this
-  $form->{$form->{column}} = $form->{q}           || '';
-  $form->{limit}           = ($form->{limit} * 1) || 10;
-  $form->{searchitems}   ||= '';
-
-  CT->search(\%myconfig, $form);
+  my $column;
+  if ($form->{column} eq "name") {
+    $column = "name";
+  } elsif ($form->{column} eq "street") {
+    $column = "street";
+  } elsif ($form->{column} eq "zipcode") {
+    $column = "zipcode";
+  } elsif ($form->{column} eq "city") {
+    $column = "city";
+  } else {
+    $main::lxdebug->leave_sub();
+    return;
+  }
+ 
+  my $term = $form->{term};
+  my $cv = $form->{vc} eq "customer" ? "customer" : "vendor";
+  CT->short_search(\%myconfig, $form, $cv, $column, $term);
 
   print $form->ajax_response_header(),
-        $form->parse_html_template('ct/ajax_autocomplete');
+        to_json($form->{CT});
 
   $main::lxdebug->leave_sub();
 }

@@ -1214,6 +1214,7 @@ sub search {
                    "vendors"      => "ALL_VC");
 
   # constants and subs for template
+  $form->{vc} = "vendor";
   $form->{jsscript}  = 1;
   $form->{vc_keys}   = sub { "$_[0]->{name}--$_[0]->{id}" };
 

@@ -676,6 +676,40 @@ sub delete {
   $main::lxdebug->leave_sub();
 }
 
+sub short_search {
+  $main::lxdebug->enter_sub();
+
+  my ( $self, $myconfig, $form, $cv, $column, $term ) = @_;
+  my $query;
+  # connect to database
+  my $dbh = $form->dbconnect($myconfig);
+
+    my $where = "$column ILIKE ? OR shipto$column ILIKE ?";
+   $term = '%'. $term .'%';
+
+      $query =
+        qq|SELECT (ct.|.$cv.qq|number \|\|'--'\|\| ct.name \|\|'--'\|\|
+          (CASE WHEN sh.shiptostreet <> ''
+             THEN sh.shiptostreet
+             ELSE ct.street
+             END)\|\|'--'\|\| 
+             (CASE WHEN sh.shiptozipcode <> ''
+             THEN sh.shiptozipcode
+             ELSE ct.zipcode
+             END)\|\|'--'\|\|
+             (CASE WHEN sh.shiptocity <> ''
+             THEN sh.shiptocity
+             ELSE ct.city
+             END)) as label, ct.id as vc_id, ct.name as vc_name, (ct.name \|\| '--' \|\| ct.id) as vc_oldcustomer  | .
+        qq|FROM $cv ct LEFT OUTER JOIN shipto AS sh ON (sh.trans_id = ct.id)| .
+        qq|WHERE $where|;
+
+  $form->{CT} = selectall_hashref_query($form, $dbh, $query, $term, $term);
+
+  $main::lxdebug->leave_sub();
+
+}
+
 sub search {
   $main::lxdebug->enter_sub();
 
@@ -786,7 +820,7 @@ sub search {
   my $query =
     qq|SELECT ct.*, b.description AS business | .
     qq|FROM $cv ct | .
-    qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
+    qq|LEFT JOIN business.b ON (ct.business_id = b.id) | .
     qq|WHERE $where|;
 
   my @saved_values = @values;
@@ -806,7 +840,7 @@ sub search {
         qq|  (a.amount = a.paid) AS closed | .
         qq|FROM $cv ct | .
         qq|JOIN $ar a ON (a.${cv}_id = ct.id) | .
-        qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
+        qq|LEFT JOIN business.b ON (ct.business_id = b.id) | .
         qq|WHERE $where AND (a.invoice = '1')|;
 
       $union = qq|UNION|;
@@ -823,7 +857,7 @@ sub search {
         qq|  'oe' AS module, 'order' AS formtype, o.closed | .
         qq|FROM $cv ct | .
         qq|JOIN oe o ON (o.${cv}_id = ct.id) | .
-        qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
+        qq|LEFT JOIN business.b ON (ct.business_id = b.id) | .
         qq|WHERE $where AND (o.quotation = '0')|;
 
       $union = qq|UNION|;
@@ -840,7 +874,7 @@ sub search {
         qq|  'oe' AS module, 'quotation' AS formtype, o.closed | .
         qq|FROM $cv ct | .
         qq|JOIN oe o ON (o.${cv}_id = ct.id) | .
-        qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
+        qq|LEFT JOIN business.b ON (ct.business_id = b.id) | .
         qq|WHERE $where AND (o.quotation = '1')|;
     }
   }

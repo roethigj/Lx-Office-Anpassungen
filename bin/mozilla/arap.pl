@@ -63,7 +63,7 @@ sub check_name {
 
   $name = $name eq "customer" ? "customer" : "vendor";
 
-  my ($new_name, $new_id) = split /--/, $form->{$name};
+  my ($new_name, $new_id) = split /--/, $form->{"old$name"}; #changed for autocomplete
   my $i = 0;
   # if we use a selection
   if ($form->{"select$name"}) {
@@ -81,8 +81,9 @@ sub check_name {
       IS->get_customer(\%myconfig, \%$form) if ($name eq 'customer');
       IR->get_vendor(\%myconfig, \%$form) if ($name eq 'vendor');
 
-      $form->{$name} = $form->{"old$name"} = "$new_name--$new_id";
-
+      $form->{$name} = $new_name;
+      $form->{"old$name"} = "$new_name--$new_id";
+      $form->{"select$name"} = "";
       $i = 1;
     }
   } else {

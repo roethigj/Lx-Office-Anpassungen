@@ -32,6 +32,7 @@
 #======================================================================
 
 use POSIX qw(strftime);
+use JSON;
 
 use SL::DO;
 use SL::FU;
@@ -619,7 +620,8 @@ sub update {
         IS->get_pricegroups_for_parts(\%myconfig, \%$form);
 
         # build up html code for prices_$i
-        &set_pricegroup($i);
+        set_pricegroup($i);
+        
       }
 
       display_form();
@@ -636,8 +638,8 @@ sub update {
 
         display_form();
       } else {
-        $form->{"id_$i"}   = 0;
-        new_item();
+       $form->{"id_$i"}   = 0;
+       new_item();
       }
     }
   }
@@ -2030,4 +2032,20 @@ sub dispatcher {
   }
 
   $::form->error($::locale->text('No action defined.'));
+}
+
+sub ajax_autocomplete {
+  $main::lxdebug->enter_sub();
+
+  my $form     = $main::form;
+  my %myconfig = %main::myconfig;
+
+  my $column = $form->{column} eq 'partnumber' ? 'partnumber' : 'description';
+  my $term = $form->{term};
+  IR->short_search(\%myconfig, $form, $column, $term);
+
+  print $form->ajax_response_header(),
+        to_json($form->{parts});
+ 
+  $main::lxdebug->leave_sub();
 }
