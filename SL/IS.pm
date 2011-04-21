@@ -406,6 +406,7 @@ sub invoice_details {
   $form->{paid}     = $form->format_amount($myconfig, $form->{paid}, 2);
 
   $form->set_payment_options($myconfig, $form->{invdate});
+  $form->set_delivery_terms_options($myconfig);
 
   $form->{username} = $myconfig->{name};
 
@@ -1009,7 +1010,7 @@ sub post_invoice {
                 cp_id       = ?, marge_total   = ?, marge_percent = ?,
                 globalproject_id               = ?, delivery_customer_id             = ?,
                 transaction_description        = ?, delivery_vendor_id               = ?,
-                donumber    = ?, invnumber_for_credit_note = ?
+                donumber    = ?, invnumber_for_credit_note = ?, delivery_terms_id = ?
               WHERE id = ?|;
   @values = (          $form->{"invnumber"},           $form->{"ordnumber"},             $form->{"quonumber"},          $form->{"cusordnumber"},
              conv_date($form->{"invdate"}),  conv_date($form->{"orddate"}),    conv_date($form->{"quodate"}),    conv_i($form->{"customer_id"}),
@@ -1022,7 +1023,7 @@ sub post_invoice {
                 conv_i($form->{"cp_id"}),            1 * $form->{marge_total} ,      1 * $form->{marge_percent},
                 conv_i($form->{"globalproject_id"}),                              conv_i($form->{"delivery_customer_id"}),
                        $form->{transaction_description},                          conv_i($form->{"delivery_vendor_id"}),
-                       $form->{"donumber"}, $form->{"invnumber_for_credit_note"},
+                       $form->{"donumber"}, $form->{"invnumber_for_credit_note"}, conv_i($form->{"delivery_terms_id"}),
                 conv_i($form->{"id"}));
   do_query($form, $dbh, $query, @values);
 
@@ -1450,7 +1451,7 @@ sub retrieve_invoice {
            a.transdate AS invdate, a.deliverydate, a.paid, a.storno, a.gldate,
            a.shippingpoint, a.shipvia, a.terms, a.notes, a.intnotes, a.taxzone_id,
            a.duedate, a.taxincluded, a.curr AS currency, a.shipto_id, a.cp_id,
-           a.employee_id, a.salesman_id, a.payment_id,
+           a.employee_id, a.salesman_id, a.payment_id, a.delivery_terms_id,
            a.language_id, a.delivery_customer_id, a.delivery_vendor_id, a.type,
            a.transaction_description, a.donumber, a.invnumber_for_credit_note,
            a.marge_total, a.marge_percent,
@@ -1632,7 +1633,7 @@ sub get_customer {
          c.id AS customer_id, c.name AS customer, c.discount as customer_discount, c.creditlimit, c.terms,
          c.email, c.cc, c.bcc, c.language_id, c.payment_id,
          c.street, c.zipcode, c.city, c.country,
-         c.notes AS intnotes, c.klass as customer_klass, c.taxzone_id, c.salesman_id,
+         c.notes AS intnotes, c.klass as customer_klass, c.taxzone_id, c.salesman_id, c.delivery_terms_id,
          $duedate + COALESCE(pt.terms_netto, 0) AS duedate,
          b.discount AS tradediscount, b.description AS business
        FROM customer c

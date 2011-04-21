@@ -185,6 +185,10 @@ sub populate_drop_down_boxes {
   $query = qq|SELECT id, description FROM payment_terms ORDER BY sortkey|;
   $form->{payment_terms} = selectall_hashref_query($form, $dbh, $query);
 
+  # get delivery terms
+  $query = qq|SELECT id, description FROM delivery_terms ORDER BY id|;
+  $form->{delivery_terms} = selectall_hashref_query($form, $dbh, $query);
+
   $dbh->disconnect() unless ($provided_dbh);
 
   $main::lxdebug->leave_sub();
@@ -315,7 +319,8 @@ sub save_customer {
     qq|taxzone_id = ?, | .
     qq|user_password = ?, | .
     qq|c_vendor_id = ?, | .
-    qq|klass = ? | .
+    qq|klass = ?, | .
+    qq|delivery_terms_id = ? | .
     qq|WHERE id = ?|;
   my @values = (
     $form->{customernumber},
@@ -357,6 +362,7 @@ sub save_customer {
     $form->{user_password},
     $form->{c_vendor_id},
     conv_i($form->{klass}),
+    conv_i($form->{delivery_terms_id}),
     $form->{id}
     );
   do_query( $form, $dbh, $query, @values );
@@ -525,7 +531,8 @@ sub save_vendor {
     qq|  language_id = ?, | .
     qq|  username = ?, | .
     qq|  user_password = ?, | .
-    qq|  v_customer_id = ? | .
+    qq|  v_customer_id = ?, | .
+    qq|  delivery_terms_id = ? | .
     qq|WHERE id = ?|;
   my @values = (
     $form->{vendornumber},
@@ -565,6 +572,7 @@ sub save_vendor {
     $form->{username},
     $form->{user_password},
     $form->{v_customer_id},
+    conv_i($form->{delivery_terms_id}),
     $form->{id}
     );
   do_query($form, $dbh, $query, @values);

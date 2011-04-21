@@ -1952,6 +1952,36 @@ sub set_payment_options {
 
 }
 
+sub set_delivery_terms_options {
+  $main::lxdebug->enter_sub();
+
+  my ($self, $myconfig) = @_;
+
+  return $main::lxdebug->leave_sub() unless ($self->{delivery_terms_id});
+
+  my $dbh = $self->get_standard_dbh($myconfig);
+
+  my $query = qq|SELECT (CASE WHEN description_long LIKE '' THEN description
+                                                         ELSE description_long
+                                                         END) AS delivery_terms_text FROM delivery_terms 
+                     WHERE id = ?|;
+  ($self->{delivery_terms}) = selectrow_query($self, $dbh, $query, conv_i($self->{delivery_terms_id}));
+
+  if ($self->{"language_id"}) {
+    $query =
+      qq|SELECT t.description_long FROM translation_delivery_terms t | .
+      qq|LEFT JOIN language l ON t.language_id = l.id | .
+      qq|WHERE (t.language_id = ?) AND (t.delivery_terms_id = ?)|;
+    my ($description_long) =
+      selectrow_query($self, $dbh, $query,
+                      $self->{"language_id"}, $self->{"delivery_terms_id"});
+
+    $self->{delivery_terms} = $description_long if ($description_long);
+  }
+  $main::lxdebug->leave_sub();
+
+}
+
 sub get_template_language {
   $main::lxdebug->enter_sub();
 
@@ -2391,6 +2421,20 @@ $main::lxdebug->enter_sub();
   $main::lxdebug->leave_sub();
 }
 
+sub _get_delivery_terms {
+$main::lxdebug->enter_sub();
+
+  my ($self, $dbh, $key) = @_;
+
+  $key = "delivery_terms" unless ($key);
+
+  my $query = qq|SELECT * FROM delivery_terms ORDER BY id|;
+
+  $self->{$key} = selectall_hashref_query($self, $dbh, $query);
+
+  $main::lxdebug->leave_sub();
+}
+
 sub _get_customers {
   $main::lxdebug->enter_sub();
 
@@ -2587,6 +2631,10 @@ sub get_lists {
 
   if($params{"payments"}) {
     $self->_get_payments($dbh, $params{"payments"});
+  }
+
+  if($params{"delivery_terms"}) {
+    $self->_get_delivery_terms($dbh, $params{"delivery_terms"});
   }
 
   if($params{"departments"}) {

@@ -2381,6 +2381,239 @@ sub swap_payment_terms {
   $main::lxdebug->leave_sub();
 }
 
+sub add_delivery {
+  $main::lxdebug->enter_sub();
+
+  my $form     = $main::form;
+  my %myconfig = %main::myconfig;
+
+  $main::auth->assert('config');
+
+  $form->{title} = "Add";
+
+  $form->{callback} = "am.pl?action=add_delivery" unless $form->{callback};
+
+  my @languages = AM->language(\%myconfig, $form, 1);
+  map({ $_->{"language"} = $_->{"description"};
+        $_->{"language_id"} = $_->{"id"}; } @languages);
+  $form->{"TRANSLATION"} = \@languages;
+  &delivery_header;
+  &form_footer;
+
+  $main::lxdebug->leave_sub();
+}
+
+sub edit_delivery {
+  $main::lxdebug->enter_sub();
+
+  my $form     = $main::form;
+  my %myconfig = %main::myconfig;
+
+  $main::auth->assert('config');
+
+  $form->{title} = "Edit";
+
+  AM->get_delivery(\%myconfig, $form);
+
+  &delivery_header;
+
+  $form->{orphaned} = 1;
+  &form_footer;
+
+  $main::lxdebug->leave_sub();
+}
+
+sub list_delivery {
+  $main::lxdebug->enter_sub();
+
+  my $form     = $main::form;
+  my %myconfig = %main::myconfig;
+  my $locale   = $main::locale;
+
+  $main::auth->assert('config');
+
+  AM->delivery(\%myconfig, \%$form);
+
+  $form->{callback} = build_std_url("action=list_delivery");
+
+  my $callback = $form->escape($form->{callback});
+
+  $form->{title} = $locale->text('Delivery Terms');
+
+  my @column_index = qw(description description_long);
+  my %column_header;
+  $column_header{description} =
+      qq|<th class=listheading>|
+    . $locale->text('Description')
+    . qq|</th>|;
+  $column_header{description_long} =
+      qq|<th class=listheading>|
+    . $locale->text('Long Description')
+    . qq|</th>|;
+
+  $form->header;
+
+  print qq|
+<body>
+
+<table width=100%>
+  <tr>
+    <th class=listtop>$form->{title}</th>
+  </tr>
+  <tr height="5"></tr>
+  <tr>
+    <td>
+      <table width=100%>
+        <tr class=listheading>
+|;
+
+  map { print "$column_header{$_}\n" } @column_index;
+
+  print qq|
+        </tr>
+|;
+
+  my $row = 0;
+  my ($i, %column_data);
+  foreach my $ref (@{ $form->{ALL} }) {
+
+    $i++;
+    $i %= 2;
+
+    print qq|
+        <tr valign=top class=listrow$i>
+|;
+    $column_data{description} =
+      qq|<td><a href="| .
+      build_std_url("action=edit_delivery", "id=$ref->{id}", "callback=$callback") .
+      qq|">| . H($ref->{description}) . qq|</a></td>|;
+    $column_data{description_long} =
+      qq|<td>| . H($ref->{description_long}) . qq|</td>|;
+    map { print "$column_data{$_}\n" } @column_index;
+
+    print qq|
+       </tr>
+|;
+    $row++;
+  }
+
+  print qq|
+      </table>
+    </td>
+  </tr>
+  <tr>
+  <td><hr size=3 noshade></td>
+  </tr>
+</table>
+
+<br>
+<form method=post action=am.pl>
+
+<input name=callback type=hidden value="$form->{callback}">
+
+<input type=hidden name=type value=delivery>
+
+<input class=submit type=submit name=action value="|
+    . $locale->text('Add') . qq|">
+
+  </form>
+
+  </body>
+  </html>
+|;
+
+  $main::lxdebug->leave_sub();
+}
+
+sub delivery_header {
+  $main::lxdebug->enter_sub();
+
+  my $form     = $main::form;
+  my $locale   = $main::locale;
+
+  $main::auth->assert('config');
+
+  $form->{title}    = $locale->text("$form->{title} Delivery Terms");
+
+  $form->{description} =~ s/\"/&quot;/g;
+
+  $form->header;
+
+  print qq|
+<body>
+
+<form method=post action=am.pl>
+
+<input type=hidden name=id value=$form->{id}>
+<input type=hidden name=type value=delivery>
+
+<table width=100%>
+  <tr>
+    <th class=listtop colspan=2>$form->{title}</th>
+  </tr>
+  <tr height="5"></tr>
+  <tr>
+    <th align=right>| . $locale->text('Description') . qq|</th>
+    <td><input name=description size=30 value="$form->{description}"></td>
+  </tr>
+  <tr>
+    <th align=right>| . $locale->text('Long Description') . qq|</th>
+    <td><input name=description_long size=50 value="$form->{description_long}"></td>
+  </tr>
+|;
+
+  foreach my $language (@{ $form->{"TRANSLATION"} }) {
+    print qq|
+  <tr>
+    <th align="right">| .
+    sprintf($locale->text('Translation (%s)'),
+            $language->{"language"})
+    . qq|</th>
+    <td><input name="description_long_$language->{language_id}" size="50"
+         value="| . Q($language->{"description_long"}) . qq|"></td>
+  </tr>
+|;
+  }
+print qq|  <td colspan=2><hr size=3 noshade></td>
+  </tr>
+</table>|;
+
+  $main::lxdebug->leave_sub();
+}
+
+
+sub save_delivery {
+  $main::lxdebug->enter_sub();
+
+  my $form     = $main::form;
+  my %myconfig = %main::myconfig;
+  my $locale   = $main::locale;
+
+  $main::auth->assert('config');
+
+  $form->isblank("description", $locale->text('Description missing!'));
+  AM->save_delivery(\%myconfig, \%$form);
+  $form->redirect($locale->text('Delivery Terms saved!'));
+
+  $main::lxdebug->leave_sub();
+}
+
+
+sub delete_delivery {
+  $main::lxdebug->enter_sub();
+
+  my $form     = $main::form;
+  my %myconfig = %main::myconfig;
+  my $locale   = $main::locale;
+
+  $main::auth->assert('config');
+
+  AM->delete_delivery(\%myconfig, \%$form);
+  $form->redirect($locale->text('Payment terms deleted!'));
+
+  $main::lxdebug->leave_sub();
+}
+
 sub edit_defaults {
   $main::lxdebug->enter_sub();
 

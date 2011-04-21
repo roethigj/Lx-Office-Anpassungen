@@ -493,7 +493,7 @@ sub save {
          customer_id = ?, amount = ?, netamount = ?, reqdate = ?, taxincluded = ?,
          shippingpoint = ?, shipvia = ?, notes = ?, intnotes = ?, curr = ?, closed = ?,
          delivered = ?, proforma = ?, quotation = ?, department_id = ?, language_id = ?,
-         taxzone_id = ?, shipto_id = ?, payment_id = ?, delivery_vendor_id = ?, delivery_customer_id = ?,
+         taxzone_id = ?, shipto_id = ?, payment_id = ?, delivery_terms_id = ?, delivery_vendor_id = ?, delivery_customer_id = ?,
          globalproject_id = ?, employee_id = ?, salesman_id = ?, cp_id = ?, transaction_description = ?, marge_total = ?, marge_percent = ?
        WHERE id = ?|;
 
@@ -508,7 +508,7 @@ sub save {
              $quotation, conv_i($form->{department_id}),
              conv_i($form->{language_id}), conv_i($form->{taxzone_id}),
              conv_i($form->{shipto_id}), conv_i($form->{payment_id}),
-             conv_i($form->{delivery_vendor_id}),
+             conv_i($form->{delivery_terms_id}), conv_i($form->{delivery_vendor_id}),
              conv_i($form->{delivery_customer_id}),
              conv_i($form->{globalproject_id}), conv_i($form->{employee_id}),
              conv_i($form->{salesman_id}), conv_i($form->{cp_id}),
@@ -788,7 +788,7 @@ sub retrieve {
            o.curr AS currency, e.name AS employee, o.employee_id, o.salesman_id,
            o.${vc}_id, cv.name AS ${vc}, o.amount AS invtotal,
            o.closed, o.reqdate, o.quonumber, o.department_id, o.cusordnumber,
-           d.description AS department, o.payment_id, o.language_id, o.taxzone_id,
+           d.description AS department, o.payment_id, o.delivery_terms_id, o.language_id, o.taxzone_id,
            o.delivery_customer_id, o.delivery_vendor_id, o.proforma, o.shipto_id,
            o.globalproject_id, o.delivered, o.transaction_description
          FROM oe o
@@ -1320,6 +1320,8 @@ sub order_details {
   } else {
     $form->set_payment_options($myconfig, $form->{orddate});
   }
+
+  $form->set_delivery_terms_options($myconfig);
 
   $form->{username} = $myconfig->{name};
 

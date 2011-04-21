@@ -865,7 +865,7 @@ sub delete_language {
   # connect to database
   my $dbh = $form->dbconnect_noauto($myconfig);
 
-  foreach my $table (qw(translation_payment_terms units_language)) {
+  foreach my $table (qw(translation_payment_terms units_language translation_delivery_terms)) {
     $query = qq|DELETE FROM $table WHERE language_id = ?|;
     do_query($form, $dbh, $query, $form->{"id"});
   }
@@ -1254,6 +1254,152 @@ sub delete_payment {
   do_query($form, $dbh, $query, $form->{"id"});
 
   $query = qq|DELETE FROM payment_terms WHERE id = ?|;
+  do_query($form, $dbh, $query, $form->{"id"});
+
+  $dbh->commit();
+  $dbh->disconnect;
+
+  $main::lxdebug->leave_sub();
+}
+
+
+sub delivery {
+  $main::lxdebug->enter_sub();
+
+  my ($self, $myconfig, $form) = @_;
+
+  # connect to database
+  my $dbh = $form->dbconnect($myconfig);
+
+  my $query = qq|SELECT * FROM delivery_terms|;
+
+  my $sth = $dbh->prepare($query);
+  $sth->execute || $form->dberror($query);
+
+  $form->{ALL} = [];
+  while (my $ref = $sth->fetchrow_hashref("NAME_lc")) {
+    push @{ $form->{ALL} }, $ref;
+  }
+
+  $sth->finish;
+  $dbh->disconnect;
+
+  $main::lxdebug->leave_sub();
+}
+
+sub get_delivery {
+  $main::lxdebug->enter_sub();
+
+  my ($self, $myconfig, $form) = @_;
+
+  # connect to database
+  my $dbh = $form->dbconnect($myconfig);
+
+  my $query = qq|SELECT * FROM delivery_terms WHERE id = ?|;
+  my $sth = $dbh->prepare($query);
+  $sth->execute($form->{"id"}) || $form->dberror($query . " ($form->{id})");
+
+  my $ref = $sth->fetchrow_hashref("NAME_lc");
+  map { $form->{$_} = $ref->{$_} } keys %$ref;
+  $sth->finish();
+
+  $query =
+    qq|SELECT t.language_id, t.description_long, l.description AS language | .
+    qq|FROM translation_delivery_terms t | .
+    qq|LEFT JOIN language l ON t.language_id = l.id | .
+    qq|WHERE t.delivery_terms_id = ? | .
+    qq|UNION | .
+    qq|SELECT l.id AS language_id, NULL AS description_long, | .
+    qq|  l.description AS language | .
+    qq|FROM language l|;
+  $sth = $dbh->prepare($query);
+  $sth->execute($form->{"id"}) || $form->dberror($query . " ($form->{id})");
+
+  my %mapping;
+  while (my $ref = $sth->fetchrow_hashref("NAME_lc")) {
+    $mapping{ $ref->{"language_id"} } = $ref
+      unless (defined($mapping{ $ref->{"language_id"} }));
+  }
+  $sth->finish;
+
+  $form->{"TRANSLATION"} = [sort({ $a->{"language"} cmp $b->{"language"} }
+                                 values(%mapping))];
+
+  $dbh->disconnect;
+
+  $main::lxdebug->leave_sub();
+}
+
+sub save_delivery {
+  $main::lxdebug->enter_sub();
+
+  my ($self, $myconfig, $form) = @_;
+
+  # connect to database
+  my $dbh = $form->dbconnect_noauto($myconfig);
+
+  my $query;
+
+  if (!$form->{id}) {
+    $query = qq|INSERT INTO delivery_terms (description, description_long) VALUES (?,?)|;
+    do_query($form, $dbh, $query, $form->{description}, $form->{description_long});
+    $query = qq|SELECT id FROM delivery_terms ORDER BY id DESC LIMIT 1|;
+    $form->{id} = selectrow_query($form, $dbh, $query);
+  } else {
+    $query =
+      qq|DELETE FROM translation_delivery_terms | .
+      qq|WHERE delivery_terms_id = ?|;
+    do_query($form, $dbh, $query, $form->{"id"});
+  
+
+    $query = qq|UPDATE delivery_terms SET
+               description = ?, description_long = ?
+                WHERE id = ?|;
+    my @values = ($form->{description}, $form->{description_long},
+                  $form->{id});
+    do_query($form, $dbh, $query, @values);
+  }
+  $query = qq|SELECT id FROM language|;
+  my @language_ids;
+  my $sth = $dbh->prepare($query);
+  $sth->execute() || $form->dberror($query);
+
+  while (my ($id) = $sth->fetchrow_array()) {
+    push(@language_ids, $id);
+  }
+  $sth->finish();
+
+  $query =
+    qq|INSERT INTO translation_delivery_terms | .
+    qq|(language_id, delivery_terms_id, description_long) | .
+    qq|VALUES (?, ?, ?)|;
+  $sth = $dbh->prepare($query);
+
+  foreach my $language_id (@language_ids) {
+    do_statement($form, $sth, $query, $language_id, $form->{"id"},
+                 $form->{"description_long_${language_id}"});
+  }
+  $sth->finish();
+
+  $dbh->commit();
+  $dbh->disconnect;
+
+  $main::lxdebug->leave_sub();
+}
+
+sub delete_delivery {
+  $main::lxdebug->enter_sub();
+
+  my ($self, $myconfig, $form) = @_;
+
+  # connect to database
+  my $dbh = $form->dbconnect_noauto($myconfig);
+
+  my $query =
+    qq|DELETE FROM translation_delivery_terms WHERE delivery_terms_id = ?|;
+  do_query($form, $dbh, $query, $form->{"id"});
+
+  $query = qq|DELETE FROM delivery_terms WHERE id = ?|;
   do_query($form, $dbh, $query, $form->{"id"});
 
   $dbh->commit();
