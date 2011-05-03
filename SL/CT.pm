@@ -676,40 +676,6 @@ sub delete {
   $main::lxdebug->leave_sub();
 }
 
-sub short_search {
-  $main::lxdebug->enter_sub();
-
-  my ( $self, $myconfig, $form, $cv, $column, $term ) = @_;
-  my $query;
-  # connect to database
-  my $dbh = $form->dbconnect($myconfig);
-
-    my $where = "$column ILIKE ? OR shipto$column ILIKE ?";
-   $term = '%'. $term .'%';
-
-      $query =
-        qq|SELECT (ct.|.$cv.qq|number \|\|'--'\|\| ct.name \|\|'--'\|\|
-          (CASE WHEN sh.shiptostreet <> ''
-             THEN sh.shiptostreet
-             ELSE ct.street
-             END)\|\|'--'\|\| 
-             (CASE WHEN sh.shiptozipcode <> ''
-             THEN sh.shiptozipcode
-             ELSE ct.zipcode
-             END)\|\|'--'\|\|
-             (CASE WHEN sh.shiptocity <> ''
-             THEN sh.shiptocity
-             ELSE ct.city
-             END)) as label, ct.id as vc_id, ct.name as vc_name, (ct.name \|\| '--' \|\| ct.id) as vc_oldcustomer  | .
-        qq|FROM $cv ct LEFT OUTER JOIN shipto AS sh ON (sh.trans_id = ct.id)| .
-        qq|WHERE $where|;
-
-  $form->{CT} = selectall_hashref_query($form, $dbh, $query, $term, $term);
-
-  $main::lxdebug->leave_sub();
-
-}
-
 sub search {
   $main::lxdebug->enter_sub();
 
