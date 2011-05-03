@@ -1397,27 +1397,4 @@ sub get_duedate {
   return $duedate;
 }
 
-sub short_search {
-  $main::lxdebug->enter_sub();
-
-  my ( $self, $myconfig, $form, $column, $term) = @_;
-  my $query;
-  # connect to database
-  my $dbh = $form->dbconnect($myconfig);
-
-  my @values;
-
-    push(@values, '%' . $term . '%');
-
-      $query = 
-        qq|SELECT (p.partnumber \|\| '--' \|\| p.description \|\| '--' \|\| p.sellprice) as label, p.partnumber as partnumber, p.description as desc | .
-        qq|FROM parts p | .
-        qq|WHERE $column ILIKE ?|;
-
-  $form->{parts} = selectall_hashref_query($form, $dbh, $query, @values);
-
-  $main::lxdebug->leave_sub();
-
-}
-
 1;

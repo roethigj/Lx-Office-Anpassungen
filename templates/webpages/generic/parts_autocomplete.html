@@ -8,7 +8,7 @@
                 response( cache[ term ] );
                 return;
               }
-              lastXhr = $.getJSON('oe.pl?action=ajax_autocomplete&INPUT_ENCODING=utf8&column=partnumber', request, 
+              lastXhr = $.getJSON('controller.pl?action=Autocomplete/part_search&INPUT_ENCODING=utf8&column=partnumber', request, 
                           function (data, status, xhr ) {
                             cache[ term ] = data;
                             if ( xhr === lastXhr ) { response ( data );}
@@ -32,7 +32,7 @@
                 response( cache[ term ] );
                 return;
               }
-              lastXhr = $.getJSON('oe.pl?action=ajax_autocomplete&INPUT_ENCODING=utf8&column=description', request, 
+              lastXhr = $.getJSON('controller.pl?action=Autocomplete/part_search&INPUT_ENCODING=utf8&column=description', request, 
                           function (data, status, xhr ) {
                             cache[ term ] = data;
                             if ( xhr === lastXhr ) { response ( data );}

@@ -2034,18 +2034,3 @@ sub dispatcher {
   $::form->error($::locale->text('No action defined.'));
 }
 
-sub ajax_autocomplete {
-  $main::lxdebug->enter_sub();
-
-  my $form     = $main::form;
-  my %myconfig = %main::myconfig;
-
-  my $column = $form->{column} eq 'partnumber' ? 'partnumber' : 'description';
-  my $term = $form->{term};
-  IR->short_search(\%myconfig, $form, $column, $term);
-
-  print $form->ajax_response_header(),
-        to_json($form->{parts});
- 
-  $main::lxdebug->leave_sub();
-}

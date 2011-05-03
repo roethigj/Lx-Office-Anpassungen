@@ -20,7 +20,7 @@
               response( cache[ term ] );
               return;
             }
-            lastXhr = $.getJSON('ct.pl?action=ajax_autocomplete&INPUT_ENCODING=utf8&vc=[%- vc %]&column='+$('#s_column option:selected').attr('value'), request,
+            lastXhr = $.getJSON('controller.pl?action=Autocomplete/ct_search&INPUT_ENCODING=utf8&vc=[%- vc %]&column='+$('#s_column option:selected').attr('value'), request,
                         function (data, status, xhr ) {
                           cache[ term ] = data;
                           if ( xhr === lastXhr ) { response ( data );}
@@ -55,7 +55,7 @@
                     response( cache[ term ] );
                     return;
                   }
-                  lastXhr = $.getJSON('ct.pl?action=ajax_autocomplete&INPUT_ENCODING=utf8&vc=[%- vc %]&column='+$('#s_column option:selected').attr('value'), request,
+                  lastXhr = $.getJSON('controller.pl?action=Autocomplete/ct_search&INPUT_ENCODING=utf8&vc=[%- vc %]&column='+$('#s_column option:selected').attr('value'), request,
                               function (data, status, xhr ) {
                                 cache[ term ] = data;
                                 if ( xhr === lastXhr ) { response ( data );}
