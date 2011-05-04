@@ -42,7 +42,7 @@ require "bin/mozilla/invoice_io.pl";
 require "bin/mozilla/arap.pl";
 require "bin/mozilla/common.pl";
 require "bin/mozilla/drafts.pl";
-
+require "bin/mozilla/is_helper.pl";
 use strict;
 
 1;
