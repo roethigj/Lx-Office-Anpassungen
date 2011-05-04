@@ -208,25 +208,18 @@ sub display_row {
   my @ROWS;
   for my $i (1 .. $numrows) {
     my %column_data = ();
+    
 
     # undo formatting
     map { $form->{"${_}_$i"} = $form->parse_amount(\%myconfig, $form->{"${_}_$i"}) }
-      qw(qty discount sellprice lastcost price_new price_old)
+      qw(qty discount sellprice lastcost price_new)
         unless ($form->{simple_save});
+    
+   # get pricegroups
+    IS->get_pricegroups_new(\%myconfig, $form, $i);
+    set_pricegroup_for_i($i);
+    map { $form->{"${_}_$i"} = $form->parse_amount(\%myconfig, $form->{"${_}_$i"}) } qw(sellprice price_new);
 
-# unit begin
-    $form->{"unit_old_$i"}      ||= $form->{"unit_$i"};
-    $form->{"selected_unit_$i"} ||= $form->{"unit_$i"};
-
-    if (   !$all_units->{$form->{"selected_unit_$i"}}                                            # Die ausgewaehlte Einheit ist fuer diesen Artikel nicht gueltig
-        || !AM->convert_unit($form->{"selected_unit_$i"}, $form->{"unit_old_$i"}, $all_units)) { # (z.B. Dimensionseinheit war ausgewaehlt, es handelt sich aber
-      $form->{"unit_old_$i"} = $form->{"selected_unit_$i"} = $form->{"unit_$i"};                 # um eine Dienstleistung). Dann keinerlei Umrechnung vornehmen.
-    }
-    # adjust prices by unit, ignore if pricegroup changed
-    if ((!$form->{"prices_$i"}) || ($form->{"new_pricegroup_$i"} == $form->{"old_pricegroup_$i"})) {
-        $form->{"sellprice_$i"} *= AM->convert_unit($form->{"selected_unit_$i"}, $form->{"unit_old_$i"}, $all_units) || 1;
-        $form->{"unit_old_$i"}   = $form->{"selected_unit_$i"};
-    }
     my $this_unit = $form->{"unit_$i"};
     $this_unit    = $form->{"selected_unit_$i"} if AM->convert_unit($this_unit, $form->{"selected_unit_$i"}, $all_units);
 
@@ -245,7 +238,6 @@ sub display_row {
     }
 
     $column_data{"unit"} = AM->unit_select_html($all_units, "unit_$i", $this_unit, $form->{"id_$i"} ? $form->{"unit_$i"} : undef);
-# / unit ending
 
     my $decimalplaces = ($form->{"sellprice_$i"} =~ /\.(\d+)/) ? max 2, length $1 : 2;
 
@@ -301,8 +293,11 @@ sub display_row {
 
     }
     $column_data{discount}    = $cgi->textfield(-name => "discount_$i", -size => 3, -value => $form->format_amount(\%myconfig, $form->{"discount_$i"}));
+    $form->{"linetotal_$i"}   = $linetotal;
     $column_data{linetotal}   = $form->format_amount(\%myconfig, $linetotal, 2);
     $column_data{bin}         = $form->{"bin_$i"};
+    map { $form->{"taxrate_$i"} = ($form->{"${_}_rate"}) } split / /, $form->{"taxaccounts_$i"};
+    map { $form->{"taxname_$i"} = ($form->{"${_}_description"}) } split / /, $form->{"taxaccounts_$i"};
 
     if ($is_delivery_order) {
       $column_data{stock_in_out} =  calculate_stock_in_out($i);
@@ -380,7 +375,7 @@ sub display_row {
           map { ($cgi->hidden("-name" => $_, "-value" => $form->{$_})); } map { $_."_$i" }
             (qw(orderitems_id bo pricegroup_old price_old id inventory_accno bin partsgroup partnotes
                 income_accno expense_accno listprice assembly taxaccounts ordnumber transdate cusordnumber
-                longdescription basefactor marge_absolut marge_percent marge_price_factor), @hidden_vars)
+                longdescription basefactor marge_absolut marge_percent marge_price_factor linetotal taxrate taxname), @hidden_vars)
     );
 
     map { $form->{"${_}_base"} += $linetotal } (split(/ /, $form->{"taxaccounts_$i"}));
@@ -404,8 +399,288 @@ sub display_row {
   $main::lxdebug->leave_sub();
 }
 
+sub display_one_row {
+  $main::lxdebug->enter_sub();
+
+  _check_io_auth();
+
+  #my $form     = $main::form;
+  my %myconfig = %main::myconfig;
+  my $locale   = $main::locale;
+  my $cgi      = $main::cgi;
+
+  my ($form, $i) = @_;
+  my ($readonly, $stock_in_out, $stock_in_out_title);
+
+  my $is_purchase        = (first { $_ eq $form->{type} } qw(request_quotation purchase_order purchase_delivery_order)) || ($form->{type} eq 'invoice' && $form->{vc} eq 'vendor');
+  my $show_min_order_qty =  first { $_ eq $form->{type} } qw(request_quotation purchase_order);
+  my $is_delivery_order  = $form->{type} =~ /_delivery_order$/;
+  my $is_s_p_order       = (first { $_ eq $form->{type} } qw(sales_order purchase_order));
+
+  if ($is_delivery_order) {
+    $readonly             = ' readonly' if ($form->{closed});
+
+    if ($form->{type} eq 'sales_delivery_order') {
+      $stock_in_out_title = $locale->text('Release From Stock');
+      $stock_in_out       = 'out';
+    } else {
+      $stock_in_out_title = $locale->text('Transfer To Stock');
+      $stock_in_out       = 'in';
+    }
+  }
+
+  # column_index
+  my @showcolumn = (
+    {  id => 'runningnumber',   display => 1, },
+    {  id => 'partnumber',      display => 1, },
+    {  id => 'description',     display => 1, },
+    {  id => 'ship',            display => $is_s_p_order, },
+    {  id => 'qty',             display => 1, },
+    {  id => 'price_factor',    display => !$is_delivery_order, },
+    {  id => 'unit',            display => 1, },
+    {  id => 'license',         display => 0, },
+    {  id => 'serialnr',        display => 0, },
+    {  id => 'projectnr',       display => 0, },
+    {  id => 'sellprice',       display => !$is_delivery_order, },
+    {  id => 'sellprice_pg',    display => !$is_delivery_order && !$is_purchase, },
+    {  id => 'discount',        display => !$is_delivery_order, },
+    {  id => 'linetotal',       display => !$is_delivery_order, },
+    {  id => 'bin',             display => 0, },
+    {  id => 'stock_in_out',    display => $is_delivery_order, },
+  );
+  my @column_index = map { $_->{id} } grep { $_->{display} } @showcolumn;
+
+
+  # cache units
+  my $all_units       = AM->retrieve_units(\%myconfig, $form);
+  $form->get_lists('price_factors' => 'ALL_PRICE_FACTORS');
+  my %price_factors   = map { $_->{id} => $_->{factor} } @{ $form->{ALL_PRICE_FACTORS} };
+  $form->{"price_factor_id_$i"} = $form->{price_factor_id};
+  my $colspan = scalar @column_index;
+
+  # about details
+  $myconfig{show_form_details} = 1                            unless (defined($myconfig{show_form_details}));
+  $form->{show_details}        = $myconfig{show_form_details} unless (defined($form->{show_details}));
+  # /about details
+
+  my $serialnumber  = $locale->text('Serial No.');
+  my $projectnumber = $locale->text('Project');
+  my $reqdate       = $locale->text('Reqdate');
+  my $deliverydate  = $locale->text('Required by');
+
+  # special alignings
+  my %align  = map { $_ => 'right' } qw(qty ship sellprice_pg discount linetotal stock_in_out);
+  my %nowrap = map { $_ => 1 }       qw(description unit);
+
+  my %projectnumber_labels = ();
+  my @projectnumber_values = ("");
+
+  foreach my $item (@{ $form->{"ALL_PROJECTS"} }) {
+    push(@projectnumber_values, $item->{"id"});
+    $projectnumber_labels{$item->{"id"}} = $item->{"projectnumber"};
+  }
+
+  # row
+  my $evenodd;
+  my @ROW;
+  for $i ($i..$i+1){
+    my %column_data = ();
+
+    # undo formatting
+    map { $form->{"${_}_$i"} = $form->parse_amount(\%myconfig, $form->{"${_}_$i"}) }
+    qw(qty discount sellprice lastcost price_new);
+
+    IS->get_pricegroups_new(\%myconfig, $form, $i);
+    set_pricegroup_for_i($i);
+    map { $form->{"${_}_$i"} = $form->parse_amount(\%myconfig, $form->{"${_}_$i"}) }
+      qw(sellprice price_new);
+  
+    my $this_unit = $form->{"unit_$i"};
+    $this_unit    = $form->{"selected_unit_$i"} if AM->convert_unit($this_unit, $form->{"selected_unit_$i"}, $all_units);
+    if (0 < scalar @{ $form->{ALL_PRICE_FACTORS} }) {
+      my @values = ('', map { $_->{id}                      } @{ $form->{ALL_PRICE_FACTORS} });
+      my %labels =      map { $_->{id} => $_->{description} } @{ $form->{ALL_PRICE_FACTORS} };
+      $column_data{price_factor} =
+        NTI($cgi->popup_menu('-name'    => "price_factor_id_$i",
+                             '-default' => $form->{"price_factor_id_$i"},
+                             '-values'  => \@values,
+                             '-labels'  => \%labels,
+                             '-style'   => 'width:90px'));
+    } else {
+      $column_data{price_factor} = '&nbsp;';
+    }
+  
+    $column_data{"unit"} = AM->unit_select_html($all_units, "unit_$i", $this_unit, $form->{"id_$i"} ? $form->{"unit_$i"} : undef);
+  
+    my $decimalplaces = ($form->{"sellprice_$i"} =~ /\.(\d+)/) ? max 2, length $1 : 2;
+    my $price_factor   = $price_factors{$form->{"price_factor_id_$i"}} || 1;
+    my $discount       = $form->round_amount($form->{"qty_$i"} * $form->{"sellprice_$i"} *        $form->{"discount_$i"}  / 100 / $price_factor, 2);
+    my $linetotal      = $form->round_amount($form->{"qty_$i"} * $form->{"sellprice_$i"} * (100 - $form->{"discount_$i"}) / 100 / $price_factor, 2);
+    my $rows            = $form->numtextrows($form->{"description_$i"}, 30, 6);
+  
+    $column_data{runningnumber} = $cgi->textfield(-name => "runningnumber_$i", -size => 5,  -value => $i);    # HuT
+    $column_data{partnumber}    = $cgi->textfield(-name => "partnumber_$i",    -size => 12, -value => $form->{"partnumber_$i"});
+    $column_data{description} = (($rows > 1) # if description is too large, use a textbox instead
+                                ? $cgi->textarea( -name => "description_$i", -default => $form->{"description_$i"}, -rows => $rows, -columns => 30)
+                                : $cgi->textfield(-name => "description_$i",   -size => 30, -value => $form->{"description_$i"}))
+                                . $cgi->button(-value => $locale->text('L'), -onClick => "set_longdescription_window('longdescription_$i')");
+  
+    my $qty_dec = ($form->{"qty_$i"} =~ /\.(\d+)/) ? length $1 : 2;
+  
+    $column_data{qty}  = $cgi->textfield(-name => "qty_$i", -size => 5, -value => $form->format_amount(\%myconfig, $form->{"qty_$i"}, $qty_dec));
+    $column_data{qty} .= $cgi->button(-onclick => "calculate_qty_selection_window('qty_$i','alu_$i', 'formel_$i', $i)", -value => $locale->text('*/'))
+                       . $cgi->hidden(-name => "formel_$i", -value => $form->{"formel_$i"}) . $cgi->hidden("-name" => "alu_$i", "-value" => $form->{"alu_$i"})
+                         if $form->{"formel_$i"};
+  
+    $column_data{ship} = '';
+    if ($form->{"id_$i"}) {
+      my $ship_qty        = $form->{"ship_$i"} * 1;
+      $ship_qty          *= $all_units->{$form->{"partunit_$i"}}->{factor};
+      $ship_qty          /= ( $all_units->{$form->{"unit_$i"}}->{factor} || 1 );
+  
+      $column_data{ship}  = $form->format_amount(\%myconfig, $form->round_amount($ship_qty, 2) * 1) . ' ' . $form->{"unit_$i"};
+    }
+  
+    # build in drop down list for pricesgroups
+    if ($form->{"prices_$i"}) {
+      $column_data{sellprice_pg} = qq|<select name="sellprice_pg_$i" style="width: 8em">$form->{"prices_$i"}</select>|;
+      $column_data{sellprice}    = $cgi->textfield(-name => "sellprice_$i", -size => 10, -onBlur => 'check_right_number_format(this)', -value =>
+                                     $form->format_amount(\%myconfig, $form->{"sellprice_$i"}, 2));
+    } else {
+      # for last row and 
+      $column_data{sellprice_pg} = qq|&nbsp;|;
+      $column_data{sellprice} = $cgi->textfield(-name => "sellprice_$i", -size => 10, -onBlur => "check_right_number_format(this)", -value =>
+                                                $form->format_amount(\%myconfig, $form->{"sellprice_$i"}, 2));
+    }
+    $column_data{discount}    = $cgi->textfield(-name => "discount_$i", -size => 3, -value => $form->format_amount(\%myconfig, $form->{"discount_$i"}));
+    $form->{"linetotal_$i"}   = $linetotal;
+    $column_data{linetotal}   = $form->format_amount(\%myconfig, $linetotal, 2);
+    $column_data{bin}         = $form->{"bin_$i"};
+    map { $form->{"taxrate_$i"} = ($form->{"${_}_rate"}) } split / /, $form->{"taxaccounts_$i"};
+    map { $form->{"taxname_$i"} = ($form->{"${_}_description"}) } split / /, $form->{"taxaccounts_$i"};
+  
+    if ($is_delivery_order) {
+      $column_data{stock_in_out} =  calculate_stock_in_out($i);
+    }
+    my @ROW1 = map { value => $column_data{$_}, align => $align{$_}, nowrap => $nowrap{$_} }, @column_index;
+  
+    # second row
+    my @ROW2 = ();
+    push @ROW2, { value => qq|<b>$serialnumber</b> <input name="serialnumber_$i" size="15" value="$form->{"serialnumber_$i"}">| }
+      if $form->{type} !~ /_quotation/;
+    push @ROW2, { value => qq|<b>$projectnumber</b> | . NTI($cgi->popup_menu('-name'  => "project_id_$i",        '-values'  => \@projectnumber_values,
+                                                                             '-labels' => \%projectnumber_labels, '-default' => $form->{"project_id_$i"})) };
+    push @ROW2, { value => qq|<b>$reqdate</b> <input name="reqdate_$i" size="11" onBlur="check_right_date_format(this)" value="$form->{"reqdate_$i"}">| }
+      if ($form->{type} =~ /order/ ||  $form->{type} =~ /invoice/);
+    push @ROW2, { value => sprintf qq|<b>%s</b>&nbsp;<input type="checkbox" name="subtotal_$i" value="1" %s>|,
+                   $locale->text('Subtotal'), $form->{"subtotal_$i"} ? 'checked' : '' };
+
+  # begin marge calculations
+    $form->{"lastcost_$i"}     *= 1;
+    $form->{"marge_percent_$i"} = 0;
+    my $marge_color;
+    my $real_sellprice           = $linetotal;
+    my $real_lastcost            = $form->{"lastcost_$i"} * $form->{"qty_$i"} / ( $form->{"marge_price_factor_$i"} || 1 );
+    my $marge_percent_warn       = $myconfig{marge_percent_warn} * 1 || 15;
+    my $marge_adjust_credit_note = $form->{type} eq 'credit_note' ? -1 : 1;
+    if ($real_sellprice * 1 && ($form->{"qty_$i"} * 1)) {
+      $form->{"marge_percent_$i"} = ($real_sellprice - $real_lastcost) * 100 / $real_sellprice;
+      $marge_color                = 'color="#ff0000"' if $form->{"id_$i"} && $form->{"marge_percent_$i"} < $marge_percent_warn;
+   }
+
+    $form->{"marge_absolut_$i"}  = ($real_sellprice - $real_lastcost) * $marge_adjust_credit_note;
+ 
+    map { $form->{"${_}_$i"} = $form->format_amount(\%myconfig, $form->{"${_}_$i"}, 2) } qw(marge_absolut marge_percent);
+ 
+    push @ROW2, { value => sprintf qq|
+         <font %s><b>%s</b> %s &nbsp;%s%% </font>
+          &nbsp;<b>%s</b> %s
+          &nbsp;<b>%s</b> <input size="5" name="lastcost_$i" value="%s">|,
+            $marge_color, $locale->text('Ertrag'),$form->{"marge_absolut_$i"}, $form->{"marge_percent_$i"},
+            $locale->text('LP'), $form->format_amount(\%myconfig, $form->{"listprice_$i"}, 2),
+            $locale->text('EK'), $form->format_amount(\%myconfig, $form->{"lastcost_$i"}, 2) }
+              if $form->{"id_$i"} && ($form->{type} =~ /^sales_/ ||  $form->{type} =~ /invoice/) && !$is_delivery_order;
+  # / marge calculations ending
+  
+  # calculate onhand
+    if ($form->{"id_$i"}) {
+      my $part         = IC->get_basic_part_info(id => $form->{"id_$i"});
+      my $onhand_color = 'color="#ff0000"' if  $part->{onhand} < $part->{rop};
+      push @ROW2, { value => sprintf "<b>%s</b> <font %s>%s %s</font>",
+                      $locale->text('On Hand'),
+                      $onhand_color,
+                      $form->format_amount(\%myconfig, $part->{onhand}, 2),
+                      $part->{unit}
+      };
+    }
+  # / calculate onhand
+
+    my @hidden_vars;
+
+    if ($is_delivery_order) {
+      map { $form->{"${_}_${i}"} = $form->format_amount(\%myconfig, $form->{"${_}_${i}"}) } qw(sellprice discount lastcost);
+      push @hidden_vars, qw(sellprice discount price_factor_id lastcost);
+      push @hidden_vars, "stock_${stock_in_out}_sum_qty", "stock_${stock_in_out}";
+    }
+
+    my @HIDDENS = map { value => $_}, (
+          $cgi->hidden("-name" => "unit_old_$i", "-value" => $form->{"selected_unit_$i"}),
+          $cgi->hidden("-name" => "price_new_$i", "-value" => $form->format_amount(\%myconfig, $form->{"price_new_$i"})),
+          map { ($cgi->hidden("-name" => $_, "-value" => $form->{$_})); } map { $_."_$i" }
+            (qw(orderitems_id bo pricegroup_old price_old id inventory_accno bin partsgroup partnotes
+                income_accno expense_accno listprice assembly taxaccounts ordnumber transdate cusordnumber
+                longdescription basefactor marge_absolut marge_percent marge_price_factor linetotal taxrate taxname), @hidden_vars)
+    );
+
+  # Benutzerdefinierte Variablen für Waren/Dienstleistungen/Erzeugnisse
+    _render_custom_variables_inputs(ROW2 => \@ROW2, row => $i, part_id => $form->{"id_$i"});
+
+    push @ROW, { ROW1 => \@ROW1, ROW2 => \@ROW2, HIDDENS => \@HIDDENS, colspan => $colspan, error => $form->{"row_error_$i"}, };
+    $evenodd = ($i+1) % 2; 
+    last if ($form->{"description_$i"} eq undef || $form->{"partnumber_$i"} eq undef);
+  } 
+  print $form->parse_html_template('oe/oneline', { ROWS   => \@ROW,
+                                                   evenodd => $evenodd
+                                                     });
+
+  $main::lxdebug->leave_sub();
+}
+
+
 ##################################################
 # build html-code for pricegroups in variable $form->{prices_$j}
+
+sub set_pricegroup_for_i {
+  $main::lxdebug->enter_sub();
+
+  my $form     = $main::form;
+  my $locale   = $main::locale;
+  my $cgi      = $main::cgi;
+  my %myconfig = %main::myconfig;
+
+  _check_io_auth();
+
+  my $i = shift;
+
+  # build drop down list for pricegroups
+  my $option_tmpl = qq|<option value="%s--%s" %s>%s</option>|;
+  $form->{"prices_$i"}  = join '', map { sprintf $option_tmpl, @$_{qw(price pricegroup_id selected pricegroup)} }
+                                       ( @{ $form->{PRICES}{$i} });
+  if (@{ $form->{PRICES}{$i} }) {
+    foreach my $item (@{ $form->{PRICES}{$i} }) {
+      # set new selectedpricegroup_id and prices for "Preis"
+      $form->{"pricegroup_old_$i"} = $item->{pricegroup_id}   if ($item->{selected} eq ' selected'); 
+      $form->{"sellprice_$i"}      = $item->{price}           if ($item->{selected} eq ' selected'); 
+      $form->{"price_new_$i"}      = $form->{"sellprice_$i"};  
+    }
+  } else {
+    #Einkaufsbelege
+    $form->{"sellprice_$i"} = $form->format_amount(\%myconfig, $form->{"sellprice_$i"}, 5);
+    $form->{"price_new_$i"}      = $form->{"sellprice_$i"};
+  }
+  
+  $main::lxdebug->leave_sub();
+}
 
 sub set_pricegroup {
   $main::lxdebug->enter_sub();
@@ -422,7 +697,7 @@ sub set_pricegroup {
     # build drop down list for pricegroups
     my $option_tmpl = qq|<option value="%s--%s" %s>%s</option>|;
     $form->{"prices_$j"}  = join '', map { sprintf $option_tmpl, @$_{qw(price pricegroup_id selected pricegroup)} }
-                                         (+{ pricegroup => $locale->text("none (pricegroup)") }, @{ $form->{PRICES}{$j} });
+                                         ( @{ $form->{PRICES}{$j} });
 
     foreach my $item (@{ $form->{PRICES}{$j} }) {
       # set new selectedpricegroup_id and prices for "Preis"
@@ -677,12 +952,12 @@ sub item_selected {
     $form->{"${_}_$i"} =
       $form->format_amount(\%myconfig, $form->{"${_}_$i"}, $decimalplaces)
   } qw(sellprice listprice lastcost) if $form->{item} ne 'assembly';
-
+  # muß das hier nochmal sein? erstmal raus!
   # get pricegroups for parts
-  IS->get_pricegroups_for_parts(\%myconfig, \%$form);
+  # IS->get_pricegroups_for_parts(\%myconfig, \%$form);
 
   # build up html code for prices_$i
-  set_pricegroup($form->{rowcount});
+  # set_pricegroup($form->{rowcount});
 
   &display_form;
 
@@ -784,16 +1059,16 @@ sub check_form {
       or (($form->{level} =~ /Sales/) and ($form->{type} =~ /invoice/))
       or (($form->{level} eq undef) and ($form->{type} =~ /invoice/))
       or ($form->{type} =~ /sales_order/)) {
-
+    # muß das hier nochmal sein? erstmal raus!
     # get pricegroups for parts
-    IS->get_pricegroups_for_parts(\%myconfig, \%$form);
+    #IS->get_pricegroups_for_parts(\%myconfig, \%$form);
 
     # build up html code for prices_$i
-    set_pricegroup($form->{rowcount});
+    #set_pricegroup($form->{rowcount});
 
   }
 
-  &display_form;
+  display_form();
 
   $main::lxdebug->leave_sub();
 }
@@ -1398,12 +1673,12 @@ sub print_form {
   if (!$form->{"${inv}number"} && !$form->{preview} && !$form->{id}) {
     $form->{"${inv}number"} = $form->update_defaults(\%myconfig, $numberfld);
     if ($form->{media} ne 'email') {
-
+      # muß das hier nochmal sein? erstmal raus!  
       # get pricegroups for parts
-      IS->get_pricegroups_for_parts(\%myconfig, \%$form);
+      #IS->get_pricegroups_for_parts(\%myconfig, \%$form);
 
       # build up html code for prices_$i
-      set_pricegroup($form->{rowcount});
+      #set_pricegroup($form->{rowcount});
 
       $form->{rowcount}--;
 
@@ -1781,12 +2056,12 @@ sub ship_to {
     $selected_m='';
     $selected_f='selected';
   }
-
+  # muß das hier nochmal sein? erstmal raus!
   # get pricegroups for parts
-  IS->get_pricegroups_for_parts(\%myconfig, \%$form);
+  #IS->get_pricegroups_for_parts(\%myconfig, \%$form);
 
   # build up html code for prices_$i
-  set_pricegroup($form->{rowcount});
+  #set_pricegroup($form->{rowcount});
 
   my $nextsub = ($form->{display_form}) ? $form->{display_form} : "display_form";
 

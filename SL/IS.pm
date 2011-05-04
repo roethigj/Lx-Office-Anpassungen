@@ -1971,6 +1971,166 @@ sub retrieve_item {
 # if an exchange rate - change price
 # for each part
 #
+
+sub get_pricegroups_new {
+  
+# Festlegung: Weil diese sub immer durchlaufen wird, werden die Preisanpassungen hier gemacht: 
+# Einheit, Kundentyp und Wechselkurs.
+# Preisfaktor, Positionsrabatt (discount) wird erst beim zeichnen der Zeile berechnet. 
+# Grundlage: hier ein Teil, beim Zeichnen mit qty, pricefactor multipliziert.
+# Preise erst direkt vor Ausgabe formatieren!
+# Variablenbelegung:
+# price_old: -nicht gerundeter sellprice aus Artikelstamm/pricegroup oder invoice (Alte Rechnung)
+#            -wird bei Alten Rechnungen zurückgerechnet (exchangerate, tradediscount, unit)
+
+  $main::lxdebug->enter_sub();
+  my $locale   = $main::locale;
+  my ($self, $myconfig, $form, $i) = @_;
+  my $id = $form->{"id_$i"};
+  my $dbh = $form->dbconnect($myconfig);
+  my $all_units = AM->retrieve_units($myconfig, $form);
+  $form->{"PRICES"}{$i} = [];
+  # Für berechnungen macht es sich besser nur den angezeigten Preis zu runden.
+  # somit gibt es: $price_show, als angezeigten preis - gerundet, liegt im input sellprice
+  # $price (preisgruppen), $price_new, $price_old werden für rückrechnungen verwendet und sollten nicht
+  # gerundet werden. $price nur für die Anzeige.
+  
+  my ($price, $selectedpricegroup_id) = split(/--/, $form->{"sellprice_pg_$i"});
+  my $pricegroup_old = $form->{"pricegroup_old_$i"};
+  my $dec= ($form->{"sellprice_$i"} =~ /\.(\d+)/) ? max 2, length $1 : 2;
+
+  $form->{"unit_old_$i"}      ||= $form->{"unit_$i"};
+  $form->{"selected_unit_$i"} ||= $form->{"unit_$i"};
+  if (   !$all_units->{$form->{"selected_unit_$i"}}                                            # Die ausgewaehlte Einheit ist fuer diesen Artikel nicht gueltig
+      || !AM->convert_unit($form->{"selected_unit_$i"}, $form->{"unit_old_$i"}, $all_units)) { # (z.B. Dimensionseinheit war ausgewaehlt, es handelt sich aber
+    $form->{"unit_old_$i"} = $form->{"selected_unit_$i"} = $form->{"unit_$i"};                 # um eine Dienstleistung). Dann keinerlei Umrechnung vornehmen.
+  }
+
+  my $basefactor = 1;
+
+  if ($form->{"unit_old_$i"} ne $form->{"selected_unit_$i"}) {
+   if (defined($all_units->{$form->{"unit_old_$i"}}->{"factor"}) &&
+        $all_units->{$form->{"unit_old_$i"}}->{"factor"}) {
+      $basefactor = $all_units->{$form->{"selected_unit_$i"}}->{"factor"} /
+        $all_units->{$form->{"unit_old_$i"}}->{"factor"};
+    }
+  }
+
+  if (!$form->{"basefactor_$i"}) {
+    $form->{"basefactor_$i"} = 1;
+  }
+  if ( defined $form->{customer_klass}) {
+    my $query = qq|SELECT count(id) FROM prices WHERE parts_id = ? AND price != 0|;
+    my $count = selectfirst_hashref_query($form, $dbh, $query, conv_i($id));
+    my $pricerows = $count->{count}; 
+    $query =
+      qq|SELECT
+          pricegroup_id,
+          (SELECT p.sellprice FROM parts p WHERE p.id = ?) AS default_sellprice,
+          (SELECT pg.pricegroup FROM pricegroup pg WHERE id = pricegroup_id) AS pricegroup,
+          price,
+          '' AS selected
+          FROM prices
+          WHERE parts_id = ? AND price != 0
+          UNION
+          SELECT
+          0 as pricegroup_id,
+          (SELECT sellprice FROM parts WHERE id = ?) AS default_sellprice,
+          '' AS pricegroup,
+          (SELECT DISTINCT sellprice FROM parts where id = ?) AS price,
+          'selected' AS selected
+          FROM prices
+          ORDER BY pricegroup|;
+    my @values = (conv_i($id), conv_i($id), conv_i($id), conv_i($id));
+    my $pkq = prepare_execute_query($form, $dbh, $query, @values);
+  
+    while (my $pkr = $pkq->fetchrow_hashref('NAME_lc')) {
+      $pkr->{id}       = $id;
+      $pkr->{selected} = '';
+      $pkr->{pricegroup} = $locale->text("none (pricegroup)") if $pkr->{pricegroup_id} == 0;
+
+      # if there is an exchange rate change price
+      if (($form->{exchangerate} * 1) != 0) {
+        $pkr->{price} /= $form->{exchangerate};
+      }
+      # auch für Kundentyp.
+      if (($form->{tradediscount} * 1) != 0) {
+        $pkr->{price} *= 1 - $form->{tradediscount};
+      }
+
+      $pkr->{price} *= $form->{"basefactor_$i"};
+      $pkr->{price} *= $basefactor;
+
+# Fallunterscheidungen: A - Neuer Artikel -> A1 Alte Rechnung, A2 Neuer Artikel - Preis aus Stammdaten, A3 - Neuer Artikel - Preis eingegeben.
+#                 oder: B - Alter Artikel -> B1 Keine Änderung, B2 Preisgruppe geändert, B3 Preis geändert
+# A und B müssen einander ausschließen, sonst werden alte Preise (nach Preisänderung) geschreddert!
+# Daraus folgt, daß ich bei alten Rechnungen keine Preisgruppen mehr ändern kann, oder ich vergebe die eventuell neuen Preise.
+# Also beim Erneuern alter Rechnungen darf sellprice nur geändert werden, 
+# wenn der Nutzer die Preisgruppe oder den Preis verändert. -> Also B2 oder B3.
+  
+      #A:
+      if (($pricegroup_old eq undef && defined $form->{"id_$i"}) || defined $form->{"pricegroup_id_$i"}) {
+        #A1:
+        if ($pkr->{pricegroup_id} eq $form->{"pricegroup_id_$i"} and defined $form->{"pricegroup_id_$i"}) {
+          $pkr->{selected} = ' selected';
+        # Preis aus invoice übernehmen, da der anders sein kann!
+          $pkr->{price} = $form->format_amount($myconfig, $form->{"sellprice_$i"}, 5);
+        #A2:
+        } elsif (($pkr->{pricegroup_id} eq $form->{customer_klass}) and not defined $form->{"pricegroup_id_$i"}
+                 and $pkr->{default_sellprice} == $form->{"sellprice_$i"} and $pkr->{price} != 0) {
+          $pkr->{selected}  = ' selected';
+          $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);
+        } elsif ($pkr->{pricegroup_id} eq "0" and not defined $form->{"pricegroup_id_$i"}
+                 and $pkr->{default_sellprice} == $form->{"sellprice_$i"} and $form->{customer_klass} eq "0") {
+          $pkr->{selected}  = ' selected';
+          $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);      
+        } elsif ($pkr->{pricegroup_id} eq "0" and not defined $form->{"pricegroup_id_$i"}
+                 and $pricerows == 0 and $form->{customer_klass} ne "0") {
+          $pkr->{selected}  = ' selected';
+          $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);
+        #A3:
+        } elsif ($pkr->{pricegroup_id} eq "0" and not defined $form->{"pricegroup_id_$i"}
+                 and $pkr->{default_sellprice} != $form->{"sellprice_$i"}) {
+          $pkr->{selected}  = ' selected';
+          $pkr->{price} = $form->format_amount($myconfig, $form->{"sellprice_$i"}, 5);
+        } else {
+          $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);
+        }
+      } else {
+      #B:
+        if ($selectedpricegroup_id or $selectedpricegroup_id == 0 and defined $form->{"id_$i"}) {
+          #B1
+          if (($selectedpricegroup_id == $pkr->{pricegroup_id}) 
+               and ($selectedpricegroup_id eq $pricegroup_old and $form->{"sellprice_$i"} == $form->{"price_new_$i"})) {
+            # nothing has changed
+            $pkr->{selected}  = ' selected';
+            # Bei alten Rechnungen kann sellprice != pkr->{price} sein! Änderungen der Einheiten dürfen aber nicht überschrieben werden.
+            $pkr->{price} = $form->format_amount($myconfig, ($form->{"sellprice_$i"} * $basefactor), 5);
+            # Sonderfall: Preisgruppe ist 0 und Preis war Handeingabe.
+            if ($selectedpricegroup_id == 0 and $pkr->{default_sellprice} != $form->{"price_new_$i"}) {
+              $pkr->{price} = $form->format_amount($myconfig, $form->{"sellprice_$i"}, 5);
+            }  
+          } elsif (($selectedpricegroup_id == $pkr->{pricegroup_id}) 
+                    and ($selectedpricegroup_id ne $pricegroup_old)
+                    and defined $form->{customer_klass}) {
+          #B2
+            $pkr->{selected}  = ' selected';
+            $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);
+          } elsif (($pkr->{pricegroup_id} == 0) and ($form->{"sellprice_$i"} != $form->{"price_new_$i"})) {
+          #B3  
+            $pkr->{selected}  = ' selected';
+            $pkr->{price} = $form->format_amount($myconfig, $form->{"sellprice_$i"}, 5);
+          } else {
+            $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);
+          }
+        }
+      } 
+      push @{ $form->{PRICES}{$i} }, $pkr;
+    }
+  }
+  $form->{"basefactor_$i"} *= $basefactor; 
+}
+
 sub get_pricegroups_for_parts {
 
   $main::lxdebug->enter_sub();
@@ -2023,6 +2183,7 @@ sub get_pricegroups_for_parts {
       # Die ausgewaehlte Einheit ist fuer diesen Artikel nicht gueltig
       # (z.B. Dimensionseinheit war ausgewaehlt, es handelt sich aber
       # um eine Dienstleistung). Dann keinerlei Umrechnung vornehmen.
+      # Kann das vorkommen? Bei neuen Artikeln wird die hintelegte Einheit übernommen, bei alten können nur passende Einheiten gewählt werden. 04.05.11 jo
       $form->{"unit_old_$i"} = $form->{"selected_unit_$i"} = $form->{"unit_$i"};
     }
 

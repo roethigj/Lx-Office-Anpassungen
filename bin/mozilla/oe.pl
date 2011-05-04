@@ -600,8 +600,10 @@ sub update {
         if ($sellprice) {
           $form->{"sellprice_$i"} = $sellprice;
         } else {
-          $form->{"sellprice_$i"} *= (1 - $form->{tradediscount});
-          $form->{"sellprice_$i"} /= $exchangerate;   # if there is an exchange rate adjust sellprice
+           if (!($form->{type} =~ /^sales/)) {
+             $form->{"sellprice_$i"} *= (1 - $form->{tradediscount});
+             $form->{"sellprice_$i"} /= $exchangerate;   # if there is an exchange rate adjust sellprice
+           }
         }
 
         my $amount = $form->{"sellprice_$i"} * $form->{"qty_$i"} * (1 - $form->{"discount_$i"} / 100);
@@ -614,12 +616,12 @@ sub update {
         $form->{"sellprice_$i"} = $form->format_amount(\%myconfig, $form->{"sellprice_$i"}, $decimalplaces);
         $form->{"lastcost_$i"}  = $form->format_amount(\%myconfig, $form->{"lastcost_$i"}, $decimalplaces);
         $form->{"qty_$i"}       = $form->format_amount(\%myconfig, $form->{"qty_$i"}, $dec_qty);
-
+        # erstmal raus!
         # get pricegroups for parts
-        IS->get_pricegroups_for_parts(\%myconfig, \%$form);
+        #IS->get_pricegroups_for_parts(\%myconfig, \%$form);
 
         # build up html code for prices_$i
-        &set_pricegroup($i);
+        #&set_pricegroup($i);
       }
 
       display_form();
@@ -1435,9 +1437,9 @@ sub invoice {
 
   }
 
-  #  show pricegroup in newly loaded invoice when creating invoice from quotation/order
-  IS->get_pricegroups_for_parts(\%myconfig, \%$form);
-  set_pricegroup($_) for 1 .. $form->{rowcount};
+  #  show pricegroup in newly loaded invoice when creating invoice from quotation/order  ->erstmal raus!
+  #IS->get_pricegroups_for_parts(\%myconfig, \%$form);
+  #set_pricegroup($_) for 1 .. $form->{rowcount};
 
   &display_form;
 

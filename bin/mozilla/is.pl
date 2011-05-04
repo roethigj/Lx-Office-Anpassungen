@@ -42,6 +42,7 @@ require "bin/mozilla/io.pl";
 require "bin/mozilla/invoice_io.pl";
 require "bin/mozilla/arap.pl";
 require "bin/mozilla/drafts.pl";
+require "bin/mozilla/is_helper.pl";
 
 use strict;
 
@@ -264,9 +265,9 @@ sub prepare_invoice {
       $form->{rowcount}        = $i;
 
     }
-
+#MIT DER NEUEN VARIANTE TESTEN!!! -> erstmal raus, weil über display_row erledigt.
     # get pricegroups for parts
-    IS->get_pricegroups_for_parts(\%myconfig, \%$form);
+    # IS->get_pricegroups_for_parts(\%myconfig, \%$form);
 
     # Problem: set_pricegroup resets the sellprice of old invoices to the price
     # currently defined in the pricegroup, which is a problem if the price has
@@ -504,7 +505,7 @@ sub update {
       && ($form->{"partsgroup_$i"}  eq "")) {
 
     $form->{creditremaining} += ($form->{oldinvtotal} - $form->{oldtotalpaid});
-    &check_form;
+    check_form();
 
   } else {
 
@@ -545,10 +546,10 @@ sub update {
           $form->{"sellprice_$i"} = $sellprice;
         } else {
           # if there is an exchange rate adjust sellprice
-          $form->{"sellprice_$i"} *= (1 - $form->{tradediscount});
-          $form->{"sellprice_$i"} /= $exchangerate;
+          # $form->{"sellprice_$i"} *= (1 - $form->{tradediscount});
+          # $form->{"sellprice_$i"} /= $exchangerate;
         }
-
+        $form->{"price_old_$i"} = $form->{"sellprice_$i"};
         $form->{"listprice_$i"} /= $exchangerate;
 
         my $amount = $form->{"sellprice_$i"} * $form->{"qty_$i"} * (1 - $form->{"discount_$i"} / 100);
@@ -558,7 +559,7 @@ sub update {
 
         $form->{creditremaining} -= $amount;
 
-        map { $form->{"${_}_$i"} = $form->format_amount(\%myconfig, $form->{"${_}_$i"}, $decimalplaces) } qw(sellprice listprice lastcost);
+        map { $form->{"${_}_$i"} = $form->format_amount(\%myconfig, $form->{"${_}_$i"}, $decimalplaces) } qw(listprice sellprice lastcost);
 
         $form->{"qty_$i"} = $form->format_amount(\%myconfig, $form->{"qty_$i"});
 
@@ -573,13 +574,13 @@ sub update {
         }
 
         # get pricegroups for parts
-        IS->get_pricegroups_for_parts(\%myconfig, \%$form);
+       # IS->get_pricegroups_for_parts(\%myconfig, \%$form);
 
         # build up html code for prices_$i
-        &set_pricegroup($i);
+       # &set_pricegroup($i);
       }
 
-      &display_form;
+      display_form();
 
     } else {
 
@@ -788,9 +789,9 @@ sub use_as_template {
   $form->{rowcount}--;
   $form->{invdate} = $form->current_date(\%myconfig);
 
-  # remember pricegroups for "use as template"
-  IS->get_pricegroups_for_parts(\%myconfig, \%$form);
-  set_pricegroup($_) for 1 .. $form->{rowcount};
+  # remember pricegroups for "use as template" -> wird von display_form erledigt!->raus!
+  #IS->get_pricegroups_for_parts(\%myconfig, \%$form);
+  #set_pricegroup($_) for 1 .. $form->{rowcount};
 
   &display_form;
 
