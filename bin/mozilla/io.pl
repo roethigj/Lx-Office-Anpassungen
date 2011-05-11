@@ -590,7 +590,7 @@ sub display_one_row {
    }
 
     $form->{"marge_absolut_$i"}  = ($real_sellprice - $real_lastcost) * $marge_adjust_credit_note;
- 
+
     map { $form->{"${_}_$i"} = $form->round_amount($form->{"${_}_$i"}, 2) } qw(marge_absolut marge_percent);
  
     push @ROW2, { value => sprintf qq|
