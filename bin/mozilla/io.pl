@@ -336,13 +336,14 @@ sub display_row {
     $form->{"lastcost_total"}   += $real_lastcost;
     $form->{"sellprice_total"}  += $real_sellprice;
 
-    map { $form->{"${_}_$i"} = $form->format_amount(\%myconfig, $form->{"${_}_$i"}, 2) } qw(marge_absolut marge_percent);
+    map { $form->{"${_}_$i"} = $form->round_amount($form->{"${_}_$i"}, 2) } qw(marge_absolut marge_percent);
 
     push @ROW2, { value => sprintf qq|
          <font %s><b>%s</b> %s &nbsp;%s%% </font>
         &nbsp;<b>%s</b> %s
         &nbsp;<b>%s</b> <input size="5" name="lastcost_$i" value="%s">|,
-                   $marge_color, $locale->text('Ertrag'),$form->{"marge_absolut_$i"}, $form->{"marge_percent_$i"},
+                   $marge_color, $locale->text('Ertrag'),$form->format_amount(\%myconfig, $form->{"marge_absolut_$i"}, 2),
+                   $form->format_amount(\%myconfig, $form->{"marge_percent_$i"}, 2),
                    $locale->text('LP'), $form->format_amount(\%myconfig, $form->{"listprice_$i"}, 2),
                    $locale->text('EK'), $form->format_amount(\%myconfig, $form->{"lastcost_$i"}, 2) }
       if $form->{"id_$i"} && ($form->{type} =~ /^sales_/ ||  $form->{type} =~ /invoice/) && !$is_delivery_order;
@@ -590,13 +591,14 @@ sub display_one_row {
 
     $form->{"marge_absolut_$i"}  = ($real_sellprice - $real_lastcost) * $marge_adjust_credit_note;
  
-    map { $form->{"${_}_$i"} = $form->format_amount(\%myconfig, $form->{"${_}_$i"}, 2) } qw(marge_absolut marge_percent);
+    map { $form->{"${_}_$i"} = $form->round_amount($form->{"${_}_$i"}, 2) } qw(marge_absolut marge_percent);
  
     push @ROW2, { value => sprintf qq|
          <font %s><b>%s</b> %s &nbsp;%s%% </font>
           &nbsp;<b>%s</b> %s
           &nbsp;<b>%s</b> <input size="5" name="lastcost_$i" value="%s">|,
-            $marge_color, $locale->text('Ertrag'),$form->{"marge_absolut_$i"}, $form->{"marge_percent_$i"},
+            $marge_color, $locale->text('Ertrag'),$form->format_amount(\%myconfig, $form->{"marge_absolut_$i"}, 2),
+            $form->format_amount(\%myconfig, $form->{"marge_percent_$i"}, 2),
             $locale->text('LP'), $form->format_amount(\%myconfig, $form->{"listprice_$i"}, 2),
             $locale->text('EK'), $form->format_amount(\%myconfig, $form->{"lastcost_$i"}, 2) }
               if $form->{"id_$i"} && ($form->{type} =~ /^sales_/ ||  $form->{type} =~ /invoice/) && !$is_delivery_order;
