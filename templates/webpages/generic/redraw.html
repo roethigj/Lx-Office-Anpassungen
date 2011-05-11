@@ -1,0 +1,308 @@
+[%- USE HTML %]
+[%- USE T8 %]
+<script type="text/javascript">
+/**
+ * Created by Pascal Beyeler (anvio.ch)
+ * Dual licensed under the MIT and GPL licenses:
+ * http://www.opensource.org/licenses/mit-license.php
+ * http://www.gnu.org/licenses/gpl.html
+ *
+ */
+
+(function($) {
+	$.fn.forceRedraw = function(brutal) {
+		$(this).addClass('forceRedraw').removeClass('forceRedraw');
+		if(brutal) {
+			var paddingLeft = $(this).css('padding-left');
+			var parsedPaddingLeft = parseInt(paddingLeft, 10);
+			$(this).css('padding-left', ++parsedPaddingLeft);
+			window.setTimeout($.proxy(function() {
+				$(this).css('padding-left', paddingLeft);
+			}, this), 1);		
+		}
+		return this;	
+	}
+})(jQuery);
+</script>
+
+<script type="text/javascript">
+  jQuery.extend(jQuery.expr[':'], {
+    focus: function(element) { 
+      return element == document.activeElement; 
+    }
+  });
+</script>
+
+<script type="text/javascript">
+window.captureEvents(Event.KEYPRESS);
+window.onkeypress = Ausgabe;
+
+function summen() {
+  
+  var taxtable = $('table:has(th:contains("[% 'Total' | $T8 %]"))');
+  var margetable = $('table:has(input[name="marge_total"])');
+  var paytable = $('table:has(input[name="paidaccounts"])');
+  if ((paytable[0] != undefined)) {
+    var paybody = paytable[0].tBodies[0];
+    if (paybody.rows[2].style.display != 'none') {
+      for (var j = 1; j <= 4; j++) { paybody.rows[j].style.display = 'none';}
+      var newRow = paybody.insertRow(1);
+      newRow.outerHTML = "<tr></tr><td align=\"center\" style=\"font-size:120%\">Zum Buchen von Zahlungen bitte &quot;[% 'Update' | $T8 %]&quot; dr&uuml;cken.</td>"
+                       + "<tr></tr>";
+    }
+  }
+  var t = 1;
+  if ( ($('input[name="type"]').val() != "invoice") && ($('input[name="type"]').val() != "credit_note") ) { t += 1;}
+  if (taxtable[t] != undefined) {
+    var netto = 0;
+    var steuer0 = 0;
+    var base0 = 0;
+    var steuer7 = 0;
+    var base7 = 0;
+    var steuer19 = 0;
+    var base19 = 0;
+    var descr19;
+    var descr7;
+    var descr0;
+    var footer = "";
+    var marge_total = 0;
+    var marge_percent = 0;
+    
+    if (!($('input[name="taxincluded"]').attr('checked'))) {
+      for (var j = 1;  j <= $('input[name="rowcount"]').val(); j++) {
+        netto += parseFloat($('input[name="linetotal_'+j+'"]').val());
+        if (taxtable[t] != undefined) {marge_total += parseFloat($('input[name="marge_absolut_'+j+'"]').val());}
+        if ($('input[name="taxrate_'+j+'"]').val() == "0.19000") {
+          var tax = parseFloat($('input[name="linetotal_'+j+'"]').val()) * 0.19;
+          descr19 = $('input[name="taxname_'+j+'"]').val();
+          steuer19 += tax;
+        }
+        if ($('input[name="taxrate_'+j+'"]').val() == "0.07000") {
+          var tax = parseFloat($('input[name="linetotal_'+j+'"]').val()) * 0.07;
+          descr7 = $('input[name="taxname_'+j+'"]').val();
+          steuer7 += tax;
+        }
+        if ($('input[name="taxrate_'+j+'"]').val() == "0.00000") {
+          var tax = parseFloat($('input[name="linetotal_'+j+'"]').val()) * 0.00;
+          descr0 = $('input[name="taxname_'+j+'"]').val();
+          steuer0 += tax;
+        }
+      }
+      if ($('input[name="taxincluded"]').val() == undefined) {
+        if ((descr0 != "" || descr7 != "" || descr19 != "")) {
+          footer = "<input name=\"taxincluded\" class=\"checkbox\" type=\"checkbox\" align=\"right\" [% IF taxincluded %]checked[% END %]><b>[% 'Tax Included' | $T8 %]</b><br><br>"
+          $('table:has(th:contains("[% 'Subtotal' | $T8 %]")):eq('+t+')').before(footer);
+          $(document).ready( function(){$('input[name="taxincluded"]').change(function() {summen();})});
+        }
+      }
+      footer = "<tr><th align=\"right\">[% 'Subtotal' | $T8 %]</th><td align=\"right\">"+netto.toFixed(2)+"</td></tr>"
+      if (steuer19 != 0){
+        footer +=  "<tr><th align=\"right\">Enthaltene "+descr19+"&nbsp;19%</th><td align=\"right\">"+steuer19.toFixed(2)+"</td></tr>";
+      }
+      if (steuer7 != 0){
+        footer +=  "<tr><th align=\"right\">Enthaltene "+descr7+"&nbsp;7%</th><td align=\"right\">"+steuer7.toFixed(2)+"</td></tr>";
+      } 
+      if (descr0 != undefined){
+        footer +=  "<tr><th align=\"right\">Enthaltene "+descr0+"&nbsp;0%</th><td align=\"right\">"+steuer0.toFixed(2)+"</td></tr>";
+      } 
+      var total = netto+steuer7+steuer19;
+      footer +=  "<tr><th align=\"right\">[% 'Total' | $T8 %]</th><td align=\"right\">"+total.toFixed(2)+"</td></tr>";
+      taxtable[t].innerHTML = footer;
+
+      if (margetable[t] != undefined) {
+        marge_percent = (marge_total.toFixed(2) / netto.toFixed(2))*100;
+        footer = "<tr><th  align=left>[% 'Ertrag' | $T8 %]</th><td>" + marge_total.toFixed(2) + "</td></tr>"
+               + "<tr><th  align=left>[% 'Ertrag prozentual' | $T8 %]</th><td>" + marge_percent.toFixed(2) + " %</td></tr>"
+               + "<input type=hidden name=\"marge_total\" value=\""+ marge_total.toFixed(2) +"\">"
+               + "<input type=hidden name=\"marge_percent\" value=\"" + marge_percent.toFixed(2) + "\">";
+        margetable[t].innerHTML = footer;
+      }
+
+    } else {
+      for (var j = 1;  j <= $('input[name="rowcount"]').val(); j++) {
+        netto += parseFloat($('input[name="linetotal_'+j+'"]').val());
+        if (taxtable[t] != undefined) {marge_total += parseFloat($('input[name="marge_absolut_'+j+'"]').val());}
+        if ($('input[name="taxrate_'+j+'"]').val() == "0.19000") {
+          var tax = (parseFloat($('input[name="linetotal_'+j+'"]').val()) * 0.19)/1.19;
+          descr19 = $('input[name="taxname_'+j+'"]').val();
+          steuer19 += tax;
+          base19 += parseFloat($('input[name="linetotal_'+j+'"]').val()) - steuer19;
+        }
+        if ($('input[name="taxrate_'+j+'"]').val() == "0.07000") {
+          var tax = (parseFloat($('input[name="linetotal_'+j+'"]').val()) * 0.07)/1.07;
+          descr7 = $('input[name="taxname_'+j+'"]').val();
+          steuer7 += tax;
+          base7 += parseFloat($('input[name="linetotal_'+j+'"]').val()) -steuer7;
+        }
+        if ($('input[name="taxrate_'+j+'"]').val() == "0.00000") {
+          var tax = parseFloat($('input[name="linetotal_'+j+'"]').val()) * 0.00;
+          descr0 = $('input[name="taxname_'+j+'"]').val();
+          steuer0 += tax;
+          base0 += parseFloat($('input[name="linetotal_'+j+'"]').val());
+        }
+      }
+      if (steuer19 != 0){
+        footer +=  "<tr><th align=\"right\">Enthaltene "+descr19+"&nbsp;19%</th><td align=\"right\">"+steuer19.toFixed(2)+"</td></tr>";
+        footer +=  "<tr><th align=\"right\">Nettobetrag</th><td align=\"right\">" + base19.toFixed(2) + "</td></tr>";
+      }
+      if (steuer7 != 0){
+        footer +=  "<tr><th align=\"right\">Enthaltene "+descr7+"&nbsp;7%</th><td align=\"right\">"+steuer7.toFixed(2)+"</td></tr>";
+        footer +=  "<tr><th align=\"right\">Nettobetrag</th><td align=\"right\">" + base7.toFixed(2) + "</td></tr>";
+      } 
+      if (descr0 != undefined){
+        footer +=  "<tr><th align=\"right\">Enthaltene "+descr0+"&nbsp;0%</th><td align=\"right\">"+steuer0.toFixed(2)+"</td></tr>";
+        footer +=  "<tr><th align=\"right\">Nettobetrag</th><td align=\"right\">" + base0.toFixed(2) + "</td></tr>";
+      }
+      var total = netto;
+      footer +=  "<tr><th align=\"right\">[% 'Total' | $T8 %]</th><td align=\"right\">"+total.toFixed(2)+"</td></tr>"
+      taxtable[t].innerHTML = footer; 
+      if (margetable[t] != undefined) {
+        marge_percent = (marge_total.toFixed(2) / (total))*100;
+        footer = "<tr><th  align=left>[% 'Ertrag' | $T8 %]</th><td>" + marge_total.toFixed(2) + "</td></tr>"
+               + "<tr><th  align=left>[% 'Ertrag prozentual' | $T8 %]</th><td>" + marge_percent.toFixed(2) + " %</td></tr>"
+               + "<input type=hidden name=\"marge_total\" value=\""+ marge_total.toFixed(2) +"\">"
+               + "<input type=hidden name=\"marge_percent\" value=\"" + marge_percent.toFixed(2) + "\">";
+        margetable[t].innerHTML = footer;
+      }
+    }
+  }
+
+
+}
+
+function auto() {
+  var cache = {};
+  var lastXhr;
+  $('input[name="partnumber_'+$('input[name="rowcount"]').val()+'"]').autocomplete({
+    source: function( request, response ) {
+              var term = request.term;
+              if ( term in cache ) {
+                response( cache[ term ] );
+                return;
+              }
+              lastXhr = $.getJSON('controller.pl?action=Autocomplete/part_search&INPUT_ENCODING=utf8&column=partnumber', request, 
+                          function (data, status, xhr ) {
+                            cache[ term ] = data;
+                            if ( xhr === lastXhr ) { response ( data );}
+                          }
+                        );
+            },
+    minLength: 2,
+    delay: 100,
+    open: function(event, ui) { $("li:odd").css("background-color", "#ECE9D8");},
+    select: function(event, ui) { 
+            $('input[name="partnumber_'+$('input[name="rowcount"]').val()+'"]').val( ui.item.partnumber );
+            $('input[name="description_'+$('input[name="rowcount"]').val()+'"]').val( ui.item.desc );
+            $('input[name="qty_'+$('input[name="rowcount"]').val()+'"]').focus();
+            return false;
+            }
+  });
+  $('input[name="description_'+$('input[name="rowcount"]').val()+'"]').autocomplete({
+    source: function( request, response ) {
+              var term = request.term;
+              if ( term in cache ) {
+                response( cache[ term ] );
+                return;
+              }
+              lastXhr = $.getJSON('controller.pl?action=Autocomplete/part_search&INPUT_ENCODING=utf8&column=description', request, 
+                          function (data, status, xhr ) {
+                            cache[ term ] = data;
+                            if ( xhr === lastXhr ) { response ( data );}
+                          }
+                        );
+            },
+    minLength: 2,
+    delay: 100,
+    open: function(event, ui) { $("li:odd").css("background-color", "#ECE9D8");},
+    select: function(event, ui) { 
+            $('input[name="partnumber_'+$('input[name="rowcount"]').val()+'"]').val( ui.item.partnumber );
+            $('input[name="description_'+$('input[name="rowcount"]').val()+'"]').val( ui.item.desc );
+            $('input[name="qty_'+$('input[name="rowcount"]').val()+'"]').focus();
+            return false;
+            }
+  });
+}
+
+$(document).ready( function(){$('input[name="taxincluded"]').change(function() {summen();})});
+
+function newLine(e) {
+  var theTable = document.getElementById("display_row");
+  var theTableBody = theTable.tBodies[0];
+  
+  if ($('input[name="'+$('input[name="vc"]').val()+'_id"]').val() == "") {
+    alert("Bitte Kunden ausw&auml;hlen!"); 
+    $('input[id="'+$('input[name="vc"]').val()+'"]').focus(); 
+    return false;
+  }
+  
+  var row = 0; 
+  for (var j = 0;  j < theTableBody.rows.length && $('[name$="_'+j+'"]').is(":focus") == false; j++) {
+    row = j+1;
+  }
+ 
+  if ( $('input[name="qty_'+row+'"]').val() != "0,00" && 
+        ($('input[name="partnumber_'+row+'"]').val() != "" || $('input[name="description_'+row+'"]').val() != "")){
+    $.get( "is_helper.pl?action=get_part_for_new_row",{vc:$('input[name="vc"]').val(), qty:$('input[name="qty_'+row+'"]').val(),
+           taxzone_id:$('select[id="taxzone_id"]').val(), customer_id : $('input[name="' + $('input[name="vc"]').val() + '_id"]').val(),
+           vendor_id : $('input[name="' + $('input[name="vc"]').val() + '_id"]').val(), lizenzen:$('input[name="lizenzen"]').val(),
+           type:$('input[name="type"]').val(), partnumber:$('input[name="partnumber_'+row+'"]').val(), description:$('input[name="description_'+row+'"]').val(),
+           rowcount:row, customer_klass:$('input[name="customer_klass"]').val(), sellprice:$('input[name="sellprice_'+row+'"]').val(), 
+           price_new:$('input[name="price_new_'+row+'"]').val(), 
+           customer_discount:$('input[name="customer_discount"]').val(), vendor_discount:$('input[name="vendor_discount"]').val(),
+           discount:$('input[name="discount_'+row+'"]').val(), tradediscount:$('input[name="tradediscount"]').val(), selected_unit:$('select[name="unit_'+row+'"]').val(),
+           unit_old:$('input[name="unit_old_'+row+'"]').val(), basefactor:$('input[name="basefactor_'+row+'"]').val(), 
+           pricegroup_old:$('input[name="pricegroup_old_'+row+'"]').val(), sellprice_pg:$('select[name="sellprice_pg_'+row+'"]').val(),
+           price_factor_id:$('select[name="price_factor_id_'+row+'"]').val() },
+           function(data) { 
+             $('input[name*="_'+row+'"]:hidden').remove();
+             $('input[name="partnumber_'+row+'"]').autocomplete("destroy");
+             $('input[name="description_'+row+'"]').autocomplete("destroy");  
+             theTableBody.deleteRow(row*2-1);
+             theTableBody.deleteRow(row*2-1);                
+             var newRow = theTableBody.insertRow(row*2-1);
+             if ($('input[name="rowcount"]').val() != row){
+               var emptyrow = data.lastIndexOf("<tr val") - 1;
+               data = data.substring(0,emptyrow); 
+             }  
+             newRow.outerHTML=data;
+             $('form[name="invoice"]').forceRedraw(true);      
+             var where = 0;
+             for (var i = 0; i < theTableBody.rows.length; i++) {
+               where = i+1;
+             }
+             where = Math.floor(where/2);
+             $('input[name="rowcount"]').val(where);
+             summen();
+             auto();
+             $(document).ready( function(){ $('input[name*="partnumber"]').focus() });
+           } ); 
+    return false;        
+  } else {
+    return true;
+  }
+}
+
+function Ausgabe(Ereignis) {
+  if(event.keyCode == 13) { 
+    if (!($('input[name*="qty"]').is(":focus"))) {
+      var theTable = document.getElementById("display_row");
+      var theTableBody = theTable.tBodies[0]
+      var row = 0;
+      for (var j = 0;  j < theTableBody.rows.length && ($('input[name$="_'+j+'"]').is(":focus") == false); j++) {
+            row = j+1;
+      }
+      if (row > $('input[name="rowcount"]').val()) {return true;}
+      if ( $('input[name="qty_'+row+'"]').val() == "0,00") {
+        $(document).ready( function(){ $('input[name="qty_'+j+'"]').focus() });
+      } else {      
+        return newLine();
+      }
+      return false;
+    } else {
+      return newLine();
+    }      
+  } else { 
+    return true;
+  }
+}
+</script>
