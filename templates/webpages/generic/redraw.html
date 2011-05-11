@@ -203,7 +203,7 @@ function newLine(e) {
            function(data) { 
              $('input[name*="_'+row+'"]:hidden').remove();
              theTableBody.deleteRow(row*2-1);
-             theTableBody.deleteRow(row*2-1);         
+             theTableBody.deleteRow(row*2-1);                
              var newRow = theTableBody.insertRow(row*2-1);
              if ($('input[name="rowcount"]').val() != row){
                var emptyrow = data.lastIndexOf("<tr val") - 1;
