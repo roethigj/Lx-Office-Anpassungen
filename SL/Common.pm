@@ -252,7 +252,7 @@ sub retrieve_delivery_customer {
   my $query =
     qq!SELECT id, name, customernumber, (street || ', ' || zipcode || city) AS address ! .
     qq!FROM customer ! .
-    qq!WHERE $filter business_id = (SELECT id FROM business WHERE description = 'Endkunde') ! .
+    qq!WHERE $filter business_id = (SELECT DISTINCT ON (description) description FROM business WHERE description = 'Endkunde') ! .
     qq!ORDER BY $order_by $order_dir!;
   my $sth = $dbh->prepare($query);
   $sth->execute(@filter_values) ||
@@ -287,7 +287,7 @@ sub retrieve_vendor {
 
   my $query =
     qq!SELECT id, name, customernumber, (street || ', ' || zipcode || city) AS address FROM customer ! .
-    qq!WHERE $filter business_id = (SELECT id FROM business WHERE description = ?') ! .
+    qq!WHERE $filter business_id = (SELECT DISTINCT ON (description) description as id FROM business WHERE description = ?') ! .
     qq!ORDER BY $order_by $order_dir!;
   push @filter_values, $::locale->{iconv_utf8}->convert('Händler');
   my $sth = $dbh->prepare($query);
@@ -421,7 +421,7 @@ sub get_vc_details {
          l.description AS language
        FROM ${vc} vc
        LEFT JOIN payment_terms pt ON (vc.payment_id = pt.id)
-       LEFT JOIN business b ON (vc.business_id = b.id)
+       LEFT JOIN (SELECT DISTINCT ON (description) description FROM business) b ON (vc.business_id = b.description)
        LEFT JOIN language l ON (vc.language_id = l.id)
        WHERE vc.id = ?|;
   my $ref = selectfirst_hashref_query($form, $dbh, $query, $vc_id);

@@ -320,14 +320,15 @@ sub post_invoice {
     $query =
       qq|INSERT INTO invoice (id, trans_id, parts_id, description, longdescription, qty, base_qty,
                               sellprice, fxsellprice, discount, allocated, unit, deliverydate,
-                              project_id, serialnumber, price_factor_id, price_factor, marge_price_factor)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT factor FROM price_factors WHERE id = ?), ?)|;
+                              project_id, serialnumber, price_factor_id, price_factor, marge_price_factor, tradediscount)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT factor FROM price_factors WHERE id = ?), ?, ?)|;
     @values = ($invoice_id, conv_i($form->{id}), conv_i($form->{"id_$i"}),
                $form->{"description_$i"}, $form->{"longdescription_$i"}, $form->{"qty_$i"} * -1,
                $baseqty * -1, $form->{"sellprice_$i"}, $fxsellprice, $form->{"discount_$i"}, $allocated,
                $form->{"unit_$i"}, conv_date($form->{deliverydate}),
                conv_i($form->{"project_id_$i"}), $form->{"serialnumber_$i"},
-               conv_i($form->{"price_factor_id_$i"}), conv_i($form->{"price_factor_id_$i"}), conv_i($form->{"marge_price_factor_$i"}));
+               conv_i($form->{"price_factor_id_$i"}), conv_i($form->{"price_factor_id_$i"}), 
+               conv_i($form->{"marge_price_factor_$i"}), $form->{"tradediscount_$i"});
     do_query($form, $dbh, $query, @values);
 
     CVar->save_custom_variables(module       => 'IC',
@@ -807,7 +808,7 @@ sub retrieve_invoice {
 
         i.id AS invoice_id,
         i.description, i.longdescription, i.qty, i.fxsellprice AS sellprice, i.parts_id AS id, i.unit, i.deliverydate, i.project_id, i.serialnumber,
-        i.price_factor_id, i.price_factor, i.marge_price_factor, i.discount,
+        i.price_factor_id, i.price_factor, i.marge_price_factor, i.discount, i. tradediscount,
         p.partnumber, p.inventory_accno_id AS part_inventory_accno_id, p.bin, pr.projectnumber, pg.partsgroup
 
         FROM invoice i
@@ -922,7 +923,7 @@ sub get_vendor {
     push @values, $vnr;
   }
   my $query =
-    qq|SELECT
+    qq|SELECT DISTINCT ON (v.id)
          v.id AS vendor_id, v.name AS vendor, v.discount as vendor_discount,
          v.creditlimit, v.terms, v.notes AS intnotes,
          v.email, v.cc, v.bcc, v.language_id, v.payment_id,
@@ -930,7 +931,7 @@ sub get_vendor {
          $duedate + COALESCE(pt.terms_netto, 0) AS duedate,
          b.description AS business, b.discount AS tradediscount
        FROM vendor v
-       LEFT JOIN business b       ON (b.id = v.business_id)
+       LEFT JOIN business b       ON (b.description = v.business_id)
        LEFT JOIN payment_terms pt ON (v.payment_id = pt.id)
        WHERE 1=1 $where|;
   my $ref = selectfirst_hashref_query($form, $dbh, $query, @values);
@@ -1071,7 +1072,7 @@ sub retrieve_item {
          c3.new_chart_id                  AS expense_new_chart,
          date($transdate) - c3.valid_from AS expense_valid,
 
-         pg.partsgroup
+         pg.id AS pg_id, pg.partsgroup
 
        FROM parts p
        LEFT JOIN chart c1 ON
@@ -1093,6 +1094,34 @@ sub retrieve_item {
 
   $form->{item_list} = [];
   while (my $ref = $sth->fetchrow_hashref("NAME_lc")) {
+ 
+    if ($ref->{pg_id}){
+      my $business;
+      my $query = qq|SELECT business_id FROM vendor WHERE id = '$form->{vendor_id}'|;
+      my $dsc = selectfirst_hashref_query($form, $dbh, $query);
+      $business = $dsc->{business_id};
+      $query = qq|SELECT s_date, e_date, follow_up FROM business WHERE description = '$business'|;
+      $dsc = selectfirst_hashref_query($form, $dbh, $query);
+      if ($form->{type} eq 'invoice' || $form->{type} eq 'credit_note') {
+        if (($dsc->{s_date} > $form->{invdate}) || ($dsc->{e_date} < $form->{invdate})){
+          $business = $dsc->{follow_up};
+          $form->{business} = $dsc->{follow_up};
+        } else {
+          $form->{business} = $business;
+        }
+      } else {
+        if (($dsc->{s_date} > $form->{transdate}) || ($dsc->{e_date} < $form->{transdate})){
+          $business = $dsc->{follow_up};
+          $form->{business} = $dsc->{follow_up};
+        } else {
+          $form->{business} = $business;
+        }
+      }
+
+      $query = qq|SELECT discount AS tradediscount FROM business WHERE description = '$business' AND partsgroup_id = $ref->{pg_id}|;
+      $dsc = selectfirst_hashref_query($form, $dbh, $query);
+      $ref->{tradediscount} = $dsc->{tradediscount};
+    }
 
     # In der Buchungsgruppe ist immer ein Bestandskonto verknuepft, auch wenn
     # es sich um eine Dienstleistung handelt. Bei Dienstleistungen muss das

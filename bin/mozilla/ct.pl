@@ -143,7 +143,7 @@ sub list_names {
   push @options, $locale->text('Billing/shipping address (street)')  . " : $form->{street}"    if $form->{addr_street};
 
   if ($form->{business_id}) {
-    my $business = SL::DB::Manager::Business->find_by(id => $form->{business_id});
+    my $business = SL::DB::Manager::Business->find_by(description => $form->{business_id});
     if ($business) {
       my $label = $form->{IS_CUSTOMER} ? $::locale->text('Customer type') : $::locale->text('Vendor type');
       push @options, $label . " : " . $business->description;

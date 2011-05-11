@@ -436,7 +436,7 @@ sub ar_transactions {
     qq|LEFT JOIN project pr ON (a.globalproject_id = pr.id)| .
     qq|LEFT JOIN tax_zones tz ON (tz.id = c.taxzone_id)| .
     qq|LEFT JOIN payment_terms pt ON (pt.id = c.payment_id)| .
-    qq|LEFT JOIN business b ON (b.id = c.business_id)| .
+    qq|LEFT JOIN (SELECT DISTINCT ON (description) description FROM business) b ON (b.description = c.business_id)| .
     qq|LEFT JOIN department d ON (d.id = a.department_id)|;
 
   my $where = "1 = 1";

@@ -281,6 +281,11 @@ sub prepare_order {
 
   for my $i (1 .. $form->{rowcount}) {
     $form->{"reqdate_$i"} ||= $form->{"deliverydate_$i"};
+    if ($form->{"tradediscount_$i"} * 1 != 1) {
+      $form->{"price_old_$i"}  = $form->{"sellprice_$i"} / (1-$form->{"tradediscount_$i"});
+    } else {
+      $form->{"price_old_$i"}  = $form->{"sellprice_$i"};
+    }
     $form->{"discount_$i"}  = $form->format_amount(\%myconfig, $form->{"discount_$i"} * ($format_discounts ? 100 : 1));
     $form->{"sellprice_$i"} = $form->format_amount(\%myconfig, $form->{"sellprice_$i"});
     $form->{"lastcost_$i"}  = $form->format_amount(\%myconfig, $form->{"lastcost_$i"});
@@ -601,11 +606,12 @@ sub update {
           $form->{"sellprice_$i"} = $sellprice;
         } else {
            if (!($form->{type} =~ /^sales/)) {
-             $form->{"sellprice_$i"} *= (1 - $form->{tradediscount});
+             $form->{"price_old_$i"} = $form->{"sellprice_$i"};
+             $form->{"sellprice_$i"} *= (1 - $form->{"tradediscount_$i"});
              $form->{"sellprice_$i"} /= $exchangerate;   # if there is an exchange rate adjust sellprice
            }
         }
-
+        
         my $amount = $form->{"sellprice_$i"} * $form->{"qty_$i"} * (1 - $form->{"discount_$i"} / 100);
         map { $form->{"${_}_base"} = 0 }                                 split / /, $form->{taxaccounts};
         map { $form->{"${_}_base"} += $amount }                          split / /, $form->{"taxaccounts_$i"};
@@ -1795,7 +1801,7 @@ sub poso {
   };
 
   for my $i (1 .. $form->{rowcount}) {
-    map { $form->{"${_}_${i}"} = $form->parse_amount(\%myconfig, $form->{"${_}_${i}"}) if ($form->{"${_}_${i}"}) } qw(ship qty sellprice listprice basefactor discount);
+    map { $form->{"${_}_${i}"} = $form->parse_amount(\%myconfig, $form->{"${_}_${i}"}) if ($form->{"${_}_${i}"}) } qw(ship qty sellprice listprice tradediscount basefactor discount);
   }
 
   my %saved_vars = map { $_ => $form->{$_} } grep { $form->{$_} } qw(currency);
@@ -1855,7 +1861,7 @@ sub delivery_order {
   delete @{$form}{qw(id subject message cc bcc printed emailed queued creditlimit creditremaining discount tradediscount oldinvtotal closed delivered)};
 
   for my $i (1 .. $form->{rowcount}) {
-    map { $form->{"${_}_${i}"} = $form->parse_amount(\%myconfig, $form->{"${_}_${i}"}) if ($form->{"${_}_${i}"}) } qw(ship qty sellprice listprice lastcost basefactor discount);
+    map { $form->{"${_}_${i}"} = $form->parse_amount(\%myconfig, $form->{"${_}_${i}"}) if ($form->{"${_}_${i}"}) } qw(ship qty sellprice listprice tradediscount lastcost basefactor discount);
   }
 
   my %old_values = map { $_ => $form->{$_} } qw(customer_id oldcustomer customer vendor_id oldvendor vendor shipto_id);

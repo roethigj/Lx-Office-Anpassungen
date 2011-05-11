@@ -73,6 +73,12 @@
             <span class="plus[% IF is_credit_remaining_negativ %]0[% ELSE %]1[% END %]">[% LxERP.format_amount(creditremaining,0 ,'0') %]</span>
           </td>
         </tr>
+[%- IF business %]
+        <tr>
+          <th align="right">[% 'Customer type' | $T8 %]</th>
+          <td>[% business %]</td>
+        </tr>
+[%- END %]
         <tr>
           <th align="right" nowrap>[% 'Record in' | $T8 %]</th>
           <td colspan="3"><select name="AP" style="width:250px;">[% selectAP %]</select></td>

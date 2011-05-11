@@ -193,6 +193,13 @@ sub invoice_details {
 
       my $price_factor = $price_factors{$form->{"price_factor_id_$i"}} || { 'factor' => 1 };
 
+      my $sellprice     = $form->parse_amount($myconfig, $form->{"sellprice_$i"});
+      
+      my ($dec)         = ($sellprice =~ /\.(\d+)/);
+      my $decimalplaces = max 2, length($dec);
+      my $pg_price = 0;
+      $pg_price = $sellprice / (1 - $form->{"tradediscount_$i"}) if ($form->{"tradediscount_$i"} != 1);
+
       push @{ $form->{TEMPLATE_ARRAYS}->{runningnumber} },     $position;
       push @{ $form->{TEMPLATE_ARRAYS}->{number} },            $form->{"partnumber_$i"};
       push @{ $form->{TEMPLATE_ARRAYS}->{serialnumber} },      $form->{"serialnumber_$i"};
@@ -203,7 +210,7 @@ sub invoice_details {
       push @{ $form->{TEMPLATE_ARRAYS}->{qty} },               $form->format_amount($myconfig, $form->{"qty_$i"});
       push @{ $form->{TEMPLATE_ARRAYS}->{unit} },              $form->{"unit_$i"};
       push @{ $form->{TEMPLATE_ARRAYS}->{deliverydate_oe} },   $form->{"reqdate_$i"};
-      push @{ $form->{TEMPLATE_ARRAYS}->{sellprice} },         $form->{"sellprice_$i"};
+      push @{ $form->{TEMPLATE_ARRAYS}->{sellprice} },         $form->format_amount($myconfig, $sellprice, $decimalplaces);
       push @{ $form->{TEMPLATE_ARRAYS}->{ordnumber_oe} },      $form->{"ordnumber_$i"};
       push @{ $form->{TEMPLATE_ARRAYS}->{transdate_oe} },      $form->{"transdate_$i"};
       push @{ $form->{TEMPLATE_ARRAYS}->{invnumber} },         $form->{"invnumber"};
@@ -212,6 +219,9 @@ sub invoice_details {
       push @{ $form->{TEMPLATE_ARRAYS}->{price_factor_name} }, $price_factor->{description};
       push @{ $form->{TEMPLATE_ARRAYS}->{partsgroup} },        $form->{"partsgroup_$i"};
       push @{ $form->{TEMPLATE_ARRAYS}->{reqdate} },           $form->{"reqdate_$i"};
+      push @{ $form->{TEMPLATE_ARRAYS}->{tradediscount} },     $form->format_amount($myconfig, ($form->{"tradediscount_$i"}*100), $decimalplaces -1);
+      push @{ $form->{TEMPLATE_ARRAYS}->{pg_price} },          $form->format_amount($myconfig, $pg_price, $decimalplaces);
+      push @{ $form->{TEMPLATE_ARRAYS}->{price_old} },         $form->format_amount($myconfig, $form->{"price_old_$i"}, $decimalplaces);
 
       if ($form->{lizenzen}) {
         if ($form->{"licensenumber_$i"}) {
@@ -228,10 +238,6 @@ sub invoice_details {
 
       # listprice
       push(@{ $form->{TEMPLATE_ARRAYS}->{listprice} }, $form->{"listprice_$i"});
-
-      my $sellprice     = $form->parse_amount($myconfig, $form->{"sellprice_$i"});
-      my ($dec)         = ($sellprice =~ /\.(\d+)/);
-      my $decimalplaces = max 2, length($dec);
 
       my $parsed_discount      = $form->parse_amount($myconfig, $form->{"discount_$i"});
       my $linetotal_exact      =                     $form->{"qty_$i"} * $sellprice * (100 - $parsed_discount) / 100 / $price_factor->{factor};
@@ -713,9 +719,9 @@ sub post_invoice {
                                 unit, deliverydate, project_id, serialnumber, pricegroup_id,
                                 ordnumber, transdate, cusordnumber, base_qty, subtotal,
                                 marge_percent, marge_total, lastcost,
-                                price_factor_id, price_factor, marge_price_factor)
+                                price_factor_id, price_factor, marge_price_factor, tradediscount)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                   (SELECT factor FROM price_factors WHERE id = ?), ?)|;
+                   (SELECT factor FROM price_factors WHERE id = ?), ?, ?)|;
 
       @values = ($invoice_id, conv_i($form->{id}), conv_i($form->{"id_$i"}),
                  $form->{"description_$i"}, $form->{"longdescription_$i"}, $form->{"qty_$i"},
@@ -728,7 +734,8 @@ sub post_invoice {
                  $form->{"marge_percent_$i"}, $form->{"marge_absolut_$i"},
                  $form->{"lastcost_$i"},
                  conv_i($form->{"price_factor_id_$i"}), conv_i($form->{"price_factor_id_$i"}),
-                 conv_i($form->{"marge_price_factor_$i"}));
+                 conv_i($form->{"marge_price_factor_$i"}),
+                 $form->{"tradediscount_$i"});
       do_query($form, $dbh, $query, @values);
 
       if ($form->{lizenzen} && $form->{"licensenumber_$i"}) {
@@ -1505,7 +1512,7 @@ sub retrieve_invoice {
            i.id AS invoice_id,
            i.description, i.longdescription, i.qty, i.fxsellprice AS sellprice, i.discount, i.parts_id AS id, i.unit, i.deliverydate AS reqdate,
            i.project_id, i.serialnumber, i.id AS invoice_pos, i.pricegroup_id, i.ordnumber, i.transdate, i.cusordnumber, i.subtotal, i.lastcost,
-           i.price_factor_id, i.price_factor, i.marge_price_factor,
+           i.price_factor_id, i.price_factor, i.marge_price_factor, i.tradediscount,
            p.partnumber, p.assembly, p.bin, p.notes AS partnotes, p.inventory_accno_id AS part_inventory_accno_id, p.formel,
            pr.projectnumber, pg.partsgroup, prg.pricegroup
 
@@ -1628,7 +1635,7 @@ sub get_customer {
 
   # get customer
   $query =
-    qq|SELECT
+    qq|SELECT DISTINCT ON (c.id)
          c.id AS customer_id, c.name AS customer, c.discount as customer_discount, c.creditlimit, c.terms,
          c.email, c.cc, c.bcc, c.language_id, c.payment_id,
          c.street, c.zipcode, c.city, c.country,
@@ -1636,7 +1643,7 @@ sub get_customer {
          $duedate + COALESCE(pt.terms_netto, 0) AS duedate,
          b.discount AS tradediscount, b.description AS business
        FROM customer c
-       LEFT JOIN business b ON (b.id = c.business_id)
+       LEFT JOIN business b ON (b.description = c.business_id)
        LEFT JOIN payment_terms pt ON ($payment_id (c.payment_id = pt.id))
        WHERE c.id = ?|;
   push @values, $cid;
@@ -1814,7 +1821,7 @@ sub retrieve_item {
 
          pfac.factor AS price_factor,
 
-         pg.partsgroup
+         pg.id AS pg_id, pg.partsgroup
 
        FROM parts p
        LEFT JOIN chart c1 ON
@@ -1836,6 +1843,37 @@ sub retrieve_item {
 
   while (my $ref = $sth->fetchrow_hashref('NAME_lc')) {
 
+    if ($ref->{pg_id}){
+
+      my $business;
+      my $query = qq|SELECT business_id FROM customer WHERE id = '$form->{customer_id}'|;
+      my $dsc = selectfirst_hashref_query($form, $dbh, $query);
+  
+      $business = $dsc->{business_id};
+      $query = qq|SELECT s_date, e_date, follow_up FROM business WHERE description = '$business'|;
+      $dsc = selectfirst_hashref_query($form, $dbh, $query);
+ 
+      if ($form->{type} eq 'invoice' || $form->{type} eq 'credit_note') {
+        if (($dsc->{s_date} > $form->{invdate}) || ($dsc->{e_date} < $form->{invdate})){
+          $business = $dsc->{follow_up};
+          $form->{business} = $dsc->{follow_up};
+        }else{
+          $form->{business} = $business;
+        }
+      } else {
+        if (($dsc->{s_date} > $form->{transdate}) || ($dsc->{e_date} < $form->{transdate})){
+          $business = $dsc->{follow_up};
+          $form->{business} = $dsc->{follow_up};
+        }else{
+          $form->{business} = $business;
+        }
+      }
+
+      $query = qq|SELECT discount AS tradediscount FROM business WHERE description = '$business' AND partsgroup_id = $ref->{pg_id}|;
+      $dsc = selectfirst_hashref_query($form, $dbh, $query);
+      $ref->{tradediscount} = $dsc->{tradediscount};
+    }
+    
     # In der Buchungsgruppe ist immer ein Bestandskonto verknuepft, auch wenn
     # es sich um eine Dienstleistung handelt. Bei Dienstleistungen muss das
     # Buchungskonto also aus dem Ergebnis rausgenommen werden.
@@ -2049,17 +2087,18 @@ sub get_pricegroups_new {
       $pkr->{selected} = '';
       $pkr->{pricegroup} = $locale->text("none (pricegroup)") if $pkr->{pricegroup_id} == 0;
 
+      $pkr->{price} *= $form->{"basefactor_$i"};
+      $pkr->{price} *= $basefactor;
+      my $pg_price = $pkr->{price};
+
       # if there is an exchange rate change price
       if (($form->{exchangerate} * 1) != 0) {
         $pkr->{price} /= $form->{exchangerate};
       }
       # auch für Kundentyp.
-      if (($form->{tradediscount} * 1) != 0) {
-        $pkr->{price} *= 1 - $form->{tradediscount};
+      if (($form->{"tradediscount_$i"} * 1) != 0) {
+        $pkr->{price} *= 1 - $form->{"tradediscount_$i"};
       }
-
-      $pkr->{price} *= $form->{"basefactor_$i"};
-      $pkr->{price} *= $basefactor;
 
 # Fallunterscheidungen: A - Neuer Artikel -> A1 Alte Rechnung, A2 Neuer Artikel - Preis aus Stammdaten, A3 - Neuer Artikel - Preis eingegeben.
 #                 oder: B - Alter Artikel -> B1 Keine Änderung, B2 Preisgruppe geändert, B3 Preis geändert
@@ -2079,21 +2118,25 @@ sub get_pricegroups_new {
         } elsif (($pkr->{pricegroup_id} eq $form->{customer_klass}) and not defined $form->{"pricegroup_id_$i"}
                  and $pkr->{default_sellprice} == $form->{"sellprice_$i"} and $pkr->{price} != 0) {
           $pkr->{selected}  = ' selected';
+          $form->{"price_old_$i"} = $pg_price;
           $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);
         } elsif ($pkr->{pricegroup_id} eq "0" and not defined $form->{"pricegroup_id_$i"}
                  and $pkr->{default_sellprice} == $form->{"sellprice_$i"} and $form->{customer_klass} eq "0") {
           $pkr->{selected}  = ' selected';
-          $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);      
+          $form->{"price_old_$i"} = $pg_price;
+          $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);     
         } elsif ($pkr->{pricegroup_id} eq "0" and not defined $form->{"pricegroup_id_$i"}
                  and $pricerows == 0 and $form->{customer_klass} ne "0") {
           $pkr->{selected}  = ' selected';
+          $form->{"price_old_$i"} = $pg_price;
           $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);
         #A3:
         } elsif ($pkr->{pricegroup_id} eq "0" and not defined $form->{"pricegroup_id_$i"}
                  and $pkr->{default_sellprice} != $form->{"sellprice_$i"}) {
           $pkr->{selected}  = ' selected';
+          $form->{"price_old_$i"} = $pkr->{default_sellprice};
           $pkr->{price} = $form->format_amount($myconfig, $form->{"sellprice_$i"}, 5);
-        } else {
+        } else {# Für die nicht gewählten Preise:
           $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);
         }
       } else {
@@ -2101,13 +2144,13 @@ sub get_pricegroups_new {
         if ($selectedpricegroup_id or $selectedpricegroup_id == 0 and defined $form->{"id_$i"}) {
           #B1
           if (($selectedpricegroup_id == $pkr->{pricegroup_id}) 
-               and ($selectedpricegroup_id eq $pricegroup_old and $form->{"sellprice_$i"} == $form->{"price_new_$i"})) {
+               and ($selectedpricegroup_id eq $pricegroup_old and $form->round_amount($form->{"sellprice_$i"},2) == $form->round_amount($form->{"price_new_$i"}, 2 ))) {
             # nothing has changed
             $pkr->{selected}  = ' selected';
             # Bei alten Rechnungen kann sellprice != pkr->{price} sein! Änderungen der Einheiten dürfen aber nicht überschrieben werden.
-            $pkr->{price} = $form->format_amount($myconfig, ($form->{"sellprice_$i"} * $basefactor), 5);
+            $pkr->{price} = $form->format_amount($myconfig, ($form->{"price_new_$i"} * $basefactor), 5);
             # Sonderfall: Preisgruppe ist 0 und Preis war Handeingabe.
-            if ($selectedpricegroup_id == 0 and $pkr->{default_sellprice} != $form->{"price_new_$i"}) {
+            if ($selectedpricegroup_id == 0 and ($pkr->{default_sellprice} * (1-$form->{"tradediscount_$i"})) != $form->{"price_new_$i"}) {
               $pkr->{price} = $form->format_amount($myconfig, $form->{"sellprice_$i"}, 5);
             }  
           } elsif (($selectedpricegroup_id == $pkr->{pricegroup_id}) 
@@ -2115,8 +2158,11 @@ sub get_pricegroups_new {
                     and defined $form->{customer_klass}) {
           #B2
             $pkr->{selected}  = ' selected';
+            $form->{"price_old_$i"} = $pg_price;
+            $pkr->{price} /= (1-$form->{"tradediscount_$i"}) / (1-$form->{"tradediscount_ori_$i"}) if $form->{"tradediscount_ori_$i"};
             $pkr->{price} = $form->format_amount($myconfig, $pkr->{price}, 5);
-          } elsif (($pkr->{pricegroup_id} == 0) and ($form->{"sellprice_$i"} != $form->{"price_new_$i"})) {
+          } elsif (($selectedpricegroup_id == $pkr->{pricegroup_id}) and ($form->round_amount($form->{"sellprice_$i"},2) != $form->round_amount($form->{"price_new_$i"}, 2 ))
+                    and $selectedpricegroup_id eq $pricegroup_old) {
           #B3  
             $pkr->{selected}  = ' selected';
             $pkr->{price} = $form->format_amount($myconfig, $form->{"sellprice_$i"}, 5);

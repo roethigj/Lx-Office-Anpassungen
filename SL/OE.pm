@@ -433,9 +433,9 @@ sub save {
                     id, trans_id, parts_id, description, longdescription, qty, base_qty,
                     sellprice, discount, unit, reqdate, project_id, serialnumber, ship,
                     pricegroup_id, ordnumber, transdate, cusordnumber, subtotal,
-                    marge_percent, marge_total, lastcost, price_factor_id, price_factor, marge_price_factor)
+                    marge_percent, marge_total, lastcost, price_factor_id, price_factor, marge_price_factor, tradediscount)
                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
-                          (SELECT factor FROM price_factors WHERE id = ?), ?)|;
+                          (SELECT factor FROM price_factors WHERE id = ?), ?, ?)|;
       push(@values,
            conv_i($orderitems_id), conv_i($form->{id}), conv_i($form->{"id_$i"}),
            $form->{"description_$i"}, $form->{"longdescription_$i"},
@@ -448,7 +448,8 @@ sub save {
            $form->{"marge_percent_$i"}, $form->{"marge_absolut_$i"},
            $form->{"lastcost_$i"},
            conv_i($form->{"price_factor_id_$i"}), conv_i($form->{"price_factor_id_$i"}),
-           conv_i($form->{"marge_price_factor_$i"}));
+           conv_i($form->{"marge_price_factor_$i"}),
+           $form->{"tradediscount_$i"});
       do_query($form, $dbh, $query, @values);
 
       $form->{"sellprice_$i"} = $fxsellprice;
@@ -872,7 +873,7 @@ sub retrieve {
            o.sellprice, o.parts_id AS id, o.unit, o.discount, p.bin, p.notes AS partnotes, p.inventory_accno_id AS part_inventory_accno_id,
            o.reqdate, o.project_id, o.serialnumber, o.ship, o.lastcost,
            o.ordnumber, o.transdate, o.cusordnumber, o.subtotal, o.longdescription,
-           o.price_factor_id, o.price_factor, o.marge_price_factor,
+           o.price_factor_id, o.price_factor, o.marge_price_factor, o.tradediscount,
            pr.projectnumber, p.formel,
            pg.partsgroup, o.pricegroup_id, (SELECT pricegroup FROM pricegroup WHERE id=o.pricegroup_id) as pricegroup
          FROM orderitems o
@@ -1113,7 +1114,7 @@ sub order_details {
   my @arrays =
     qw(runningnumber number description longdescription qty ship unit bin
        partnotes serialnumber reqdate sellprice listprice netprice
-       discount p_discount discount_sub nodiscount_sub
+       discount tradediscount p_discount discount_sub nodiscount_sub
        linetotal  nodiscount_linetotal tax_rate projectnumber projectdescription
        price_factor price_factor_name partsgroup);
 
@@ -1156,6 +1157,13 @@ sub order_details {
 
       my $price_factor = $price_factors{$form->{"price_factor_id_$i"}} || { 'factor' => 1 };
 
+      my $sellprice     = $form->parse_amount($myconfig, $form->{"sellprice_$i"});
+      
+      my ($dec)         = ($sellprice =~ /\.(\d+)/);
+      my $decimalplaces = max 2, length($dec);
+      my $pg_price = 0;
+      $pg_price = $sellprice / (1 - $form->{"tradediscount_$i"}) if ($form->{"tradediscount_$i"} != 1);
+
       push @{ $form->{TEMPLATE_ARRAYS}->{runningnumber} },     $position;
       push @{ $form->{TEMPLATE_ARRAYS}->{number} },            $form->{"partnumber_$i"};
       push @{ $form->{TEMPLATE_ARRAYS}->{description} },       $form->{"description_$i"};
@@ -1167,15 +1175,14 @@ sub order_details {
       push @{ $form->{TEMPLATE_ARRAYS}->{partnotes} },         $form->{"partnotes_$i"};
       push @{ $form->{TEMPLATE_ARRAYS}->{serialnumber} },      $form->{"serialnumber_$i"};
       push @{ $form->{TEMPLATE_ARRAYS}->{reqdate} },           $form->{"reqdate_$i"};
-      push @{ $form->{TEMPLATE_ARRAYS}->{sellprice} },         $form->{"sellprice_$i"};
+      push @{ $form->{TEMPLATE_ARRAYS}->{sellprice} },         $form->format_amount($myconfig, $sellprice, $decimalplaces);
       push @{ $form->{TEMPLATE_ARRAYS}->{listprice} },         $form->{"listprice_$i"};
       push @{ $form->{TEMPLATE_ARRAYS}->{price_factor} },      $price_factor->{formatted_factor};
       push @{ $form->{TEMPLATE_ARRAYS}->{price_factor_name} }, $price_factor->{description};
       push @{ $form->{TEMPLATE_ARRAYS}->{partsgroup} },        $form->{"partsgroup_$i"};
-
-      my $sellprice     = $form->parse_amount($myconfig, $form->{"sellprice_$i"});
-      my ($dec)         = ($sellprice =~ /\.(\d+)/);
-      my $decimalplaces = max 2, length($dec);
+      push @{ $form->{TEMPLATE_ARRAYS}->{tradediscount} },     $form->format_amount($myconfig, ($form->{"tradediscount_$i"}*100), $decimalplaces -1);
+      push @{ $form->{TEMPLATE_ARRAYS}->{pg_price} },          $form->format_amount($myconfig, $pg_price, $decimalplaces);
+      push @{ $form->{TEMPLATE_ARRAYS}->{price_old} },         $form->format_amount($myconfig, $form->{"price_old_$i"}, $decimalplaces);
 
       my $parsed_discount      = $form->parse_amount($myconfig, $form->{"discount_$i"});
       my $linetotal_exact      =                     $form->{"qty_$i"} * $sellprice * (100 - $parsed_discount) / 100 / $price_factor->{factor};

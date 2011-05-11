@@ -269,29 +269,36 @@ sub display_row {
       $column_data{ship}  = $form->format_amount(\%myconfig, $form->round_amount($ship_qty, 2) * 1) . ' ' . $form->{"unit_$i"};
     }
 
+    my $sellprice = $form->{"sellprice_$i"};
+    
     # build in drop down list for pricesgroups
     if ($form->{"prices_$i"}) {
       $column_data{sellprice_pg} = qq|<select name="sellprice_pg_$i" style="width: 8em">$form->{"prices_$i"}</select>|;
       $column_data{sellprice}    = $cgi->textfield(-name => "sellprice_$i", -size => 10, -onBlur => 'check_right_number_format(this)', -value =>
-                                   (($form->{"new_pricegroup_$i"} != $form->{"old_pricegroup_$i"})
-                                      ? $form->format_amount(\%myconfig, $form->{"price_new_$i"}, $decimalplaces)
-                                      : $form->format_amount(\%myconfig, $form->{"sellprice_$i"}, $decimalplaces)));
+                                     $form->format_amount(\%myconfig, $form->{"sellprice_$i"}, 2));
     } else {
-      # for last row and report
-      # set pricegroup drop down list from report menu
-      if ($form->{"sellprice_$i"} != 0) {
-        # remember the pricegroup_id in pricegroup_old
-        # but don't overwrite it
-        $form->{"pricegroup_old_$i"} = $form->{"pricegroup_id_$i"};
-        my $default_option           = $form->{"sellprice_$i"}.'--'.$form->{"pricegroup_id_$i"};
-        $column_data{sellprice_pg}   = NTI($cgi->popup_menu("sellprice_pg_$i", [ $default_option ], $default_option, { $default_option => $form->{"pricegroup_$i"} || '' }));
-      } else {
-        $column_data{sellprice_pg} = qq|&nbsp;|;
-      }
+      # for last row and 
+      $column_data{sellprice_pg} = qq|&nbsp;|;
       $column_data{sellprice} = $cgi->textfield(-name => "sellprice_$i", -size => 10, -onBlur => "check_right_number_format(this)", -value =>
-                                                $form->format_amount(\%myconfig, $form->{"sellprice_$i"}, $decimalplaces));
-
+                                                $form->format_amount(\%myconfig, $form->{"sellprice_$i"}, 2));
     }
+
+    if ($form->{"price_old_$i"} != 0) {
+      #store tradediscount as fallback
+      if ($form->{"tradediscount_$i"}) {
+        if ($form->{"tradediscount_ori_$i"} eq undef) {
+          $form->{"tradediscount_ori_$i"} = $form->{"tradediscount_$i"};
+        }
+      }
+      my $listprice = $form->{"price_old_$i"};
+      $form->{"tradediscount_$i"} = $listprice != 0 ? (1 - ($sellprice / $listprice)) : 1;
+      if ($form->{"tradediscount_$i"} != 0) {
+        $column_data{sellprice}    .= "->".$form->format_amount(\%myconfig, $form->{"tradediscount_$i"}*100, 1)."%";
+      }
+    } elsif ($form->{"tradediscount_$i"} != 0) {
+        $column_data{sellprice}    .= "->".$form->format_amount(\%myconfig, $form->{"tradediscount_$i"}*100, 1)."%";
+    }
+
     $column_data{discount}    = $cgi->textfield(-name => "discount_$i", -size => 3, -value => $form->format_amount(\%myconfig, $form->{"discount_$i"}));
     $form->{"linetotal_$i"}   = $linetotal;
     $column_data{linetotal}   = $form->format_amount(\%myconfig, $linetotal, 2);
@@ -376,7 +383,7 @@ sub display_row {
           map { ($cgi->hidden("-name" => $_, "-value" => $form->{$_})); } map { $_."_$i" }
             (qw(orderitems_id bo pricegroup_old price_old id inventory_accno bin partsgroup partnotes
                 income_accno expense_accno listprice assembly taxaccounts ordnumber transdate cusordnumber
-                longdescription basefactor marge_absolut marge_percent marge_price_factor linetotal taxrate taxname), @hidden_vars)
+                longdescription basefactor marge_absolut marge_percent marge_price_factor linetotal taxrate taxname tradediscount tradediscount_ori), @hidden_vars)
     );
 
     map { $form->{"${_}_base"} += $linetotal } (split(/ /, $form->{"taxaccounts_$i"}));
@@ -541,7 +548,9 @@ sub display_one_row {
   
       $column_data{ship}  = $form->format_amount(\%myconfig, $form->round_amount($ship_qty, 2) * 1) . ' ' . $form->{"unit_$i"};
     }
-  
+
+    my $sellprice = $form->{"sellprice_$i"};
+    
     # build in drop down list for pricesgroups
     if ($form->{"prices_$i"}) {
       $column_data{sellprice_pg} = qq|<select name="sellprice_pg_$i" style="width: 8em">$form->{"prices_$i"}</select>|;
@@ -553,6 +562,24 @@ sub display_one_row {
       $column_data{sellprice} = $cgi->textfield(-name => "sellprice_$i", -size => 10, -onBlur => "check_right_number_format(this)", -value =>
                                                 $form->format_amount(\%myconfig, $form->{"sellprice_$i"}, 2));
     }
+
+    if ($form->{"price_old_$i"} != 0) {
+      #store tradediscount as fallback
+      if ($form->{"tradediscount_$i"}) {
+        if ($form->{"tradediscount_ori_$i"} eq undef) {
+          $form->{"tradediscount_ori_$i"} = $form->{"tradediscount_$i"};
+        }
+      }
+      my $listprice = $form->{"price_old_$i"};
+      $form->{"tradediscount_$i"} = $listprice != 0 ? (1 - ($sellprice / $listprice)) : 1;
+      if ($form->{"tradediscount_$i"} != 0) {
+        $column_data{sellprice}    .= "->".$form->format_amount(\%myconfig, $form->{"tradediscount_$i"}*100, 1)."%";
+      }
+    } elsif ($form->{"tradediscount_$i"} != 0) {
+        $column_data{sellprice}    .= "->".$form->format_amount(\%myconfig, $form->{"tradediscount_$i"}*100, 1)."%";
+    }
+
+
     $column_data{discount}    = $cgi->textfield(-name => "discount_$i", -size => 3, -value => $form->format_amount(\%myconfig, $form->{"discount_$i"}));
     $form->{"linetotal_$i"}   = $linetotal;
     $column_data{linetotal}   = $form->format_amount(\%myconfig, $linetotal, 2);
@@ -631,7 +658,7 @@ sub display_one_row {
           map { ($cgi->hidden("-name" => $_, "-value" => $form->{$_})); } map { $_."_$i" }
             (qw(orderitems_id bo pricegroup_old price_old id inventory_accno bin partsgroup partnotes
                 income_accno expense_accno listprice assembly taxaccounts ordnumber transdate cusordnumber
-                longdescription basefactor marge_absolut marge_percent marge_price_factor linetotal taxrate taxname), @hidden_vars)
+                longdescription basefactor marge_absolut marge_percent marge_price_factor linetotal taxrate taxname tradediscount tradediscount_ori), @hidden_vars)
     );
 
   # Benutzerdefinierte Variablen für Waren/Dienstleistungen/Erzeugnisse
@@ -677,6 +704,7 @@ sub set_pricegroup_for_i {
     }
   } else {
     #Einkaufsbelege
+    if ($form->{"sellprice_$i"} == $form->round_amount($form->{"price_new_$i"}, 2 )) {$form->{"sellprice_$i"} = $form->{"price_new_$i"};}
     $form->{"sellprice_$i"} = $form->format_amount(\%myconfig, $form->{"sellprice_$i"}, 5);
     $form->{"price_new_$i"}      = $form->{"sellprice_$i"};
   }
@@ -788,7 +816,7 @@ sub select_item {
 
     map { $ref->{$_} =~ s/\"/&quot;/g } qw(partnumber description unit);
 
-    my $display_sellprice  = $ref->{sellprice} * (1 - $form->{tradediscount});
+    my $display_sellprice  = $ref->{sellprice};
     $display_sellprice    /= $ref->{price_factor} if ($ref->{price_factor});
     $display_sellprice     = $form->format_amount(\%myconfig, $display_sellprice, 2);
 
@@ -910,13 +938,13 @@ sub item_selected {
   if ($sellprice) {
     $form->{"sellprice_$i"} = $sellprice;
   } else {
-
+#wird in get_pricegroups_new erledigt:
     # if there is an exchange rate adjust sellprice
-    if (($form->{exchangerate} * 1) != 0) {
-      $form->{"sellprice_$i"} /= $form->{exchangerate};
-      $form->{"sellprice_$i"} =
-        $form->round_amount($form->{"sellprice_$i"}, $decimalplaces);
-    }
+    #if (($form->{exchangerate} * 1) != 0) {
+    #  $form->{"sellprice_$i"} /= $form->{exchangerate};
+    #  $form->{"sellprice_$i"} =
+    #    $form->round_amount($form->{"sellprice_$i"}, $decimalplaces);
+    #}
   }
 
   map { $form->{$_} = $form->parse_amount(\%myconfig, $form->{$_}) }
@@ -1089,7 +1117,7 @@ sub remove_emptied_rows {
                 sellprice_pg pricegroup_old price_old price_new unit_old ordnumber
                 transdate longdescription basefactor marge_total marge_percent
                 marge_price_factor lastcost price_factor_id partnotes
-                stock_out stock_in has_sernumber reqdate);
+                stock_out stock_in has_sernumber reqdate tradediscount tradediscount_ori);
 
   my $ic_cvar_configs = CVar->get_configs(module => 'IC');
   push @flds, map { "ic_cvar_$_->{name}" } @{ $ic_cvar_configs };

@@ -57,9 +57,9 @@ sub get_tuple {
 
   my $dbh   = $form->dbconnect($myconfig);
   my $query =
-    qq|SELECT ct.*, b.id AS business, cp.* | .
+    qq|SELECT ct.*, b.description AS business, cp.* | .
     qq|FROM $cv ct | .
-    qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
+    qq|LEFT JOIN (SELECT DISTINCT ON (description) description FROM business) b ON (ct.business_id = b.description) | .
     qq|LEFT JOIN contacts cp ON (ct.id = cp.cp_cv_id) | .
     qq|WHERE (ct.id = ?) | .
     qq|ORDER BY cp.cp_id LIMIT 1|;
@@ -163,7 +163,7 @@ sub populate_drop_down_boxes {
   my $dbh = $provided_dbh ? $provided_dbh : $form->dbconnect($myconfig);
 
   # get business types
-  $query = qq|SELECT id, description FROM business ORDER BY id|;
+  $query = qq|SELECT DISTINCT ON (description) description AS id, description FROM business ORDER BY description|;
   $form->{all_business} = selectall_hashref_query($form, $dbh, $query);
 
   # get shipto address
@@ -338,7 +338,7 @@ sub save_customer {
     $form->{discount},
     $form->{creditlimit},
     conv_i($form->{terms}),
-    conv_i($form->{business}),
+    $form->{business},
     $form->{taxnumber},
     $form->{language},
     $form->{account_number},
@@ -548,7 +548,7 @@ sub save_vendor {
     conv_i($form->{terms}),
     $form->{discount},
     $form->{creditlimit},
-    conv_i($form->{business}),
+    $form->{business},
     $form->{taxnumber},
     $form->{language},
     $form->{account_number},
@@ -761,7 +761,7 @@ sub search {
 
   if ($form->{business_id}) {
     $where .= qq| AND (business_id = ?)|;
-    push(@values, conv_i($form->{business_id}));
+    push(@values, $form->{business_id});
   }
 
   my ($cvar_where, @cvar_values) = CVar->build_filter_query('module'         => 'CT',
@@ -786,7 +786,7 @@ sub search {
   my $query =
     qq|SELECT ct.*, b.description AS business | .
     qq|FROM $cv ct | .
-    qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
+    qq|LEFT JOIN (SELECT DISTINCT ON (description) description FROM business) b ON (ct.business_id = b.description) | .
     qq|WHERE $where|;
 
   my @saved_values = @values;
@@ -806,7 +806,7 @@ sub search {
         qq|  (a.amount = a.paid) AS closed | .
         qq|FROM $cv ct | .
         qq|JOIN $ar a ON (a.${cv}_id = ct.id) | .
-        qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
+        qq|LEFT JOIN (SELECT DISTINCT ON (description) description FROM business) b ON (ct.business_id = b.description) | .
         qq|WHERE $where AND (a.invoice = '1')|;
 
       $union = qq|UNION|;
@@ -823,7 +823,7 @@ sub search {
         qq|  'oe' AS module, 'order' AS formtype, o.closed | .
         qq|FROM $cv ct | .
         qq|JOIN oe o ON (o.${cv}_id = ct.id) | .
-        qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
+        qq|LEFT JOIN (SELECT DISTINCT ON (description) description FROM business) b ON (ct.business_id = b.description) | .
         qq|WHERE $where AND (o.quotation = '0')|;
 
       $union = qq|UNION|;
@@ -840,7 +840,7 @@ sub search {
         qq|  'oe' AS module, 'quotation' AS formtype, o.closed | .
         qq|FROM $cv ct | .
         qq|JOIN oe o ON (o.${cv}_id = ct.id) | .
-        qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
+        qq|LEFT JOIN (SELECT DISTINCT ON (description) description FROM business) b ON (ct.business_id = b.description) | .
         qq|WHERE $where AND (o.quotation = '1')|;
     }
   }
