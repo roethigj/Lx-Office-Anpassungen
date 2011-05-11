@@ -15,21 +15,14 @@
   <td>
    <table>
     <tr>
-     <th align="right">[% HTML.escape(vclabel) %]</th>
-     <td colspan="3">
-            [%- INCLUDE 'generic/multibox.html'
-                 name          = vc,
-                 default       = vc == 'customer' ? oldcustomer : oldvendor,
-                 style         = 'width: 250px',
-                 DATA          = ALL_VC,
-                 id_sub        = 'vc_keys',
-                 label_key     = 'name',
-                 select        = vc_select,
-                 limit         = vclimit,
-                 show_empty    = 1,
-                 allow_textbox = 1,
-                 -%]
-     </td>
+       [%- INCLUDE 'generic/vc_autocomplete.html' %]
+       <script type='text/javascript'>
+         $('input[id="[%- vc %]"]').autocomplete( "option", "select", 
+                           function(event, ui) {
+                        $('input[name="[%- vc %]"]').val( ui.item.vc_name+'--'+ui.item.vc_id );                       
+                        return false;}
+                       );
+       </script>
     </tr>
 [%- IF ALL_DEPARTMENTS.size %]
     <tr>

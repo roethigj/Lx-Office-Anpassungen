@@ -161,6 +161,8 @@ Bestandteil einer Standard-Perl-Installation sind:
    * XML::Writer
 
    * YAML
+   
+   * JSON
 
    Gegenüber Version 2.6.0 sind zu dieser Liste 2 Pakete hinzugekommen,
 `URI' und `XML::Writer' sind notwendig. Ohne startet Lx-Office nicht.
@@ -190,7 +192,7 @@ libpg-perl libemail-address-perl liblist-moreutils-perl
 libpdf-api2-perl librose-object-perl librose-db-perl
 librose-db-object-perl libtemplate-perl libtext-csv-xs-perl
 libtext-iconv-perl liburi-perl libxml-writer-perl libyaml-perl
-libconfig-std-perl libparams-validate-perl'
+libconfig-std-perl libparams-validate-perl libjson-any-perl'
 
    Für Fedora Core benötigen Sie diese Pakete:
 
@@ -198,14 +200,14 @@ libconfig-std-perl libparams-validate-perl'
 perl-DateTime perl-DBI perl-DBD-Pg perl-Email-Address
 perl-List-MoreUtils perl-PDF-API2 perl-Rose-Object perl-Rose-DB
 perl-Rose-DB-Object perl-Template-Toolkit perl-Text-CSV_XS
-perl-Text-Iconv perl-URI perl-XML-Writer perl-YAML'
+perl-Text-Iconv perl-URI perl-XML-Writer perl-YAML perl-JSON-Any'
 
    Für OpenSuSE benötigen Sie diese Pakete:
 
    `apache2 postgresql-server perl-Archive-Zip perl-Class-Accessor
 perl-DateTime perl-DBI perl-DBD-Pg perl-MailTools perl-List-MoreUtils
 perl-PDF-API2 perl-Template-Toolkit perl-Text-CSV_XS perl-Text-Iconv
-perl-URI perl-XML-Writer perl-YAML'
+perl-URI perl-XML-Writer perl-YAML perl-JSON-XS'
 
    Bei openSuSE 11 ist `parent' bereits enthalten, und braucht nicht
 nachinstalliert werden. Die `Rose::*' Pakete sind derzeit nicht für

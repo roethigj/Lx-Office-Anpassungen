@@ -32,6 +32,7 @@
 #======================================================================
 
 use POSIX qw(strftime);
+use JSON;
 
 use SL::DO;
 use SL::FU;
@@ -638,8 +639,8 @@ sub update {
 
         display_form();
       } else {
-        $form->{"id_$i"}   = 0;
-        new_item();
+       $form->{"id_$i"}   = 0;
+       new_item();
       }
     }
   }
@@ -2033,3 +2034,4 @@ sub dispatcher {
 
   $::form->error($::locale->text('No action defined.'));
 }
+

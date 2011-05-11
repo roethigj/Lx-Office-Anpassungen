@@ -18,17 +18,14 @@
 
   <table>
    <tr>
-    <th align="right">[% 'Customer' | $T8 %]</th>
-    <td colspan="3">
-     [% IF SHOW_CUSTOMER_SELECTION %]
-      <select name="customer">
-       <option></option>
-       [% FOREACH row = all_customer %]<option>[% HTML.escape(row.name) %]--[% HTML.escape(row.id) %]</option>[% END %]
-      </select>
-      [% ELSE %]
-      <input name="customer" size="35">
-     [% END %]
-    </td>
+       [%- INCLUDE 'generic/vc_autocomplete.html' %]
+       <script type='text/javascript'>
+         $('input[id="[%- vc %]"]').autocomplete( "option", "select", 
+                           function(event, ui) {
+                        $('input[name="[%- vc %]"]').val( ui.item.vc_name+'--'+ui.item.vc_id );                       
+                        return false;}
+                       );
+       </script>
    </tr>
 
    [% IF SHOW_DUNNING_LEVEL_SELECTION %]

@@ -284,7 +284,7 @@ sub form_header {
   map { $_->{value} = "$_->{name}--$_->{id}"        } @{ $form->{ALL_VC} };
 
   $form->{SHOW_VC_DROP_DOWN} =  $myconfig{vclimit} > scalar @{ $form->{ALL_VC} };
-
+  $form->{vclimit} = $myconfig{vclimit};
   $form->{oldvcname}         =  $form->{"old$form->{vc}"};
   $form->{oldvcname}         =~ s/--.*//;
 
@@ -419,6 +419,7 @@ sub search {
                    "$form->{vc}s" => "ALL_VC");
 
   $form->{SHOW_VC_DROP_DOWN} =  $myconfig{vclimit} > scalar @{ $form->{ALL_VC} };
+  $form->{vclimit} = $myconfig{vclimit};
   $form->{jsscript}          = 1;
   $form->{title}             = $locale->text('Delivery Orders');
 
