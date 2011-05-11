@@ -2328,7 +2328,9 @@ sub _get_business_types {
     $where = 'WHERE ' . ($options->{salesman} ? '' : 'NOT ') . 'COALESCE(salesman)';
   }
 
-  $self->{ $options->{key} } = selectall_hashref_query($self, $dbh, qq|SELECT * FROM business $where ORDER BY lower(description)|);
+  $self->{ $options->{key} } = selectall_hashref_query($self, $dbh, qq|SELECT DISTINCT ON (description) description as id, description, 
+                                                                       customernumberinit, salesman, discount 
+                                                                       FROM business $where ORDER BY description|);
 
   $main::lxdebug->leave_sub();
 }
@@ -2399,7 +2401,7 @@ sub _get_customers {
   my $limit_clause   = "LIMIT $options->{limit}" if $options->{limit};
 
   my @where;
-  push @where, qq|business_id IN (SELECT id FROM business WHERE salesman)| if  $options->{business_is_salesman};
+  push @where, qq|business_id IN (SELECT description AS id FROM business WHERE salesman)| if  $options->{business_is_salesman};
   push @where, qq|NOT obsolete|                                            if !$options->{with_obsolete};
   my $where_str = @where ? "WHERE " . join(" AND ", map { "($_)" } @where) : '';
 
@@ -3382,7 +3384,7 @@ sub update_business {
   }
   my $query =
     qq|SELECT customernumberinit FROM business
-       WHERE id = ? FOR UPDATE|;
+       WHERE description = ? FOR UPDATE|;
   my ($var) = selectrow_query($self, $dbh, $query, $business_id);
 
   return undef unless $var;
@@ -3398,7 +3400,7 @@ sub update_business {
 
   $query = qq|UPDATE business
               SET customernumberinit = ?
-              WHERE id = ?|;
+              WHERE description = ?|;
   do_query($self, $dbh, $query, $var, $business_id);
 
   if (!$provided_dbh) {

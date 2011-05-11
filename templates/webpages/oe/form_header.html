@@ -82,10 +82,10 @@
                   </tr>
 [%- END %]
 [%- IF business %]
-                  <tr>
-                    <th align="right">[% business_label %]</th>
-                    <td>[% HTML.escape(business) %]; [% 'Trade Discount' | $T8 %] [% LxERP.format_percent(tradediscount) %] %</td>
-                  </tr>
+        <tr>
+          <th align="right">[% 'Customer type' | $T8 %]</th>
+          <td>[% business %]</td>
+        </tr>
 [%- END %]
 [%- IF max_dunning_level %]
                   <tr>

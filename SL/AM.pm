@@ -663,8 +663,10 @@ sub business {
   # connect to database
   my $dbh = $form->dbconnect($myconfig);
 
-  my $query = qq|SELECT id, description, discount, customernumberinit, salesman
-                 FROM business
+
+  my $query = qq|SELECT DISTINCT ON (b.description) b.id, b.description, b.discount, b.customernumberinit, b.salesman, 
+                 b.partsgroup_id, to_char(b.s_date, 'DD.MM.YYYY') AS s_date, to_char(b.e_date, 'DD.MM.YYYY') AS e_date, b.follow_up, pg.partsgroup
+                 FROM business b INNER JOIN partsgroup pg ON b.partsgroup_id = pg.id
                  ORDER BY 2|;
 
   my $sth = $dbh->prepare($query);
@@ -689,15 +691,52 @@ sub get_business {
   my $dbh = $form->dbconnect($myconfig);
 
   my $query =
-    qq|SELECT b.description, b.discount, b.customernumberinit, b.salesman
-       FROM business b
-       WHERE b.id = ?|;
+    qq|SELECT b.id, b.description, b.discount, b.customernumberinit, b.salesman, b.partsgroup_id,  
+       to_char(b.s_date, 'DD.MM.YYYY') AS s_date, to_char(b.e_date, 'DD.MM.YYYY') AS e_date, b.follow_up, pg.partsgroup
+       FROM business b INNER JOIN partsgroup pg ON b.partsgroup_id = pg.id
+       WHERE b.description = ?|;
   my $sth = $dbh->prepare($query);
-  $sth->execute($form->{id}) || $form->dberror($query . " ($form->{id})");
+  $sth->execute($form->{description}) || $form->dberror($query . " ($form->{id})");
 
-  my $ref = $sth->fetchrow_hashref("NAME_lc");
+  #my $ref = $sth->fetchrow_hashref("NAME_lc");
 
-  map { $form->{$_} = $ref->{$_} } keys %$ref;
+  # map { $form->{$_} = $ref->{$_} } keys %$ref;
+  while (my $ref = $sth->fetchrow_hashref("NAME_lc")) {
+    push @{ $form->{ALL} }, $ref;
+  }
+
+  $query = qq|SELECT DISTINCT on (description) description AS follow_up 
+  FROM business ORDER BY description|;
+  $form->{all_business} = selectall_hashref_query($form, $dbh, $query);
+
+  $sth->finish;
+
+  $dbh->disconnect;
+
+  $main::lxdebug->leave_sub();
+}
+
+sub pg_business {
+  $main::lxdebug->enter_sub();
+
+  my ($self, $myconfig, $form) = @_;
+
+  # connect to database
+  my $dbh = $form->dbconnect($myconfig);
+
+  my $query = qq|SELECT pg.id AS partsgroup_id, pg.partsgroup
+                 FROM partsgroup pg|;
+  
+  my $sth = $dbh->prepare($query);
+  $sth->execute || $form->dberror($query);
+
+  while (my $ref = $sth->fetchrow_hashref("NAME_lc")) {
+  push @{ $form->{ALL} }, $ref;
+  }
+
+  $query = qq|SELECT DISTINCT on (description) description AS follow_up 
+              FROM business ORDER BY description|;
+  $form->{all_business} = selectall_hashref_query($form, $dbh, $query);
 
   $sth->finish;
 
@@ -715,23 +754,30 @@ sub save_business {
   # connect to database
   my $dbh = $form->dbconnect($myconfig);
 
-  my @values = ($form->{description}, $form->{discount}, $form->{customernumberinit}, $form->{salesman} ? 't' : 'f');
-  # id is the old record
-  if ($form->{id}) {
-    $query = qq|UPDATE business SET
-                description = ?,
-                discount = ?,
-                customernumberinit = ?,
-                salesman = ?
+  my @values;
+  for my $i (1..$form->{rowcount}){
+    @values = ($form->{description}, $form->{"discount_$i"}, $form->{customernumberinit}, $form->{salesman} ? 't' : 'f', 
+               $form->{"partsgroup_id_$i"}, $form->{s_date}, $form->{e_date}, $form->{follow_up});
+    # id is the old record
+    if ($form->{"id_$i"}) {
+      $query = qq|UPDATE business SET
+                  description = ?,
+                  discount = ?,
+                  customernumberinit = ?,
+                  salesman = ?,
+                partsgroup_id = ?,
+                s_date = ?,
+                e_date = ?,
+                follow_up = ?
                 WHERE id = ?|;
-    push(@values, $form->{id});
-  } else {
-    $query = qq|INSERT INTO business
-                (description, discount, customernumberinit, salesman)
-                VALUES (?, ?, ?, ?)|;
-  }
+      push(@values, $form->{"id_$i"});
+    } else {# partsgroup_id dazu:
+      $query = qq|INSERT INTO business
+                (description, discount, customernumberinit, salesman, partsgroup_id, s_date, e_date, follow_up) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)|;
+    }
   do_query($form, $dbh, $query, @values);
-
+  }
   $dbh->disconnect;
 
   $main::lxdebug->leave_sub();
@@ -746,8 +792,8 @@ sub delete_business {
   my $dbh = $form->dbconnect($myconfig);
 
   my $query = qq|DELETE FROM business
-              WHERE id = ?|;
-  do_query($form, $dbh, $query, $form->{id});
+	             WHERE description = ?|;
+  do_query($form, $dbh, $query, $form->{description});
 
   $dbh->disconnect;
 

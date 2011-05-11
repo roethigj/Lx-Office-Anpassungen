@@ -1062,15 +1062,20 @@ sub add_business {
   $main::lxdebug->enter_sub();
 
   my $form     = $main::form;
+  my %myconfig = %main::myconfig;
 
   $main::auth->assert('config');
 
   $form->{title} = "Add";
 
   $form->{callback} = "am.pl?action=add_business" unless $form->{callback};
-
-  &business_header;
-  &form_footer;
+  
+  $form->{s_date} = "01.01.1900";
+  $form->{e_date} = "31.12.2999";
+  AM->pg_business(\%myconfig, \%$form);
+  
+  business_header();
+  form_footer();
 
   $main::lxdebug->leave_sub();
 }
@@ -1085,10 +1090,10 @@ sub edit_business {
 
   AM->get_business(\%myconfig, \%$form);
 
-  &business_header;
+  business_header();
 
   $form->{orphaned} = 1;
-  &form_footer;
+  form_footer();
 
   $main::lxdebug->leave_sub();
 }
@@ -1110,97 +1115,58 @@ sub list_business {
 
   $form->{title} = $locale->text('Type of Business');
 
-  my @column_index = qw(description discount customernumberinit);
+  my @column_index = qw(description discount customernumberinit partsgroup_id s_date e_date follow_up);
   push @column_index, 'salesman' if $::lx_office_conf{features}->{vertreter};
   my %column_header;
-  $column_header{description} =
-      qq|<th class=listheading width=60%>|
-    . $locale->text('Description')
-    . qq|</th>|;
-  $column_header{discount} =
-      qq|<th class=listheading width=10%>|
-    . $locale->text('Discount')
-    . qq| %</th>|;
-  $column_header{customernumberinit} =
-      qq|<th class=listheading>|
-    . $locale->text('Customernumberinit')
-    . qq|</th>|;
-  $column_header{salesman} =
-      qq|<th class=listheading>|
-    . $locale->text('Representative')
-    . qq|</th>|;
+  $column_header{description} =  qq|<th class=listheading width=30%>| . $locale->text('Description') . qq|</th>|;
+  $column_header{customernumberinit} = qq|<th class=listheading width=20%>| . $locale->text('Customernumberinit') . qq|</th>|;
+  $column_header{salesman} = qq|<th class=listheading>| . $locale->text('Representative') . qq|</th>|;
+  $column_header{s_date} = qq|<th class=listheading>| . $locale->text('Valid from') . qq|</th>|;
+  $column_header{e_date} = qq|<th class=listheading>| . $locale->text('Valid until') . qq|</th>|;
+  $column_header{follow_up} = qq|<th class=listheading>| . $locale->text('Alternative Business') . qq|</th>|;
 
   $form->header;
 
   print qq|
-<body>
-
-<table width=100%>
-  <tr>
-    <th class=listtop>$form->{title}</th>
-  </tr>
-  <tr height="5"></tr>
-  <tr>
-    <td>
+  <body>
+  <table width=100%>
+    <tr><th class=listtop>$form->{title}</th></tr>
+    <tr height="5"></tr>
+    <tr><td>
       <table width=100%>
-        <tr class=listheading>
-|;
-
-  map { print "$column_header{$_}\n" } @column_index;
-
-  print qq|
-        </tr>
-|;
+        <tr class=listheading>|;
+          map { print "$column_header{$_}\n" } @column_index;
+        print qq|</tr>|;
 
   my ($i, %column_data);
   foreach my $ref (@{ $form->{ALL} }) {
-
     $i++;
     $i %= 2;
-
-    print qq|
-        <tr valign=top class=listrow$i>
-|;
-
-    my $discount    = $form->format_amount(\%myconfig, $ref->{discount} * 100);
+    print qq|<tr valign=top class=listrow$i>|;
     my $description = $ref->{description};
-    $column_data{description} = qq|<td><a href="am.pl?action=edit_business&id=$ref->{id}&callback=$callback">$description</td>|;
-    $column_data{discount}           = qq|<td align=right>$discount</td>|;
-    $column_data{customernumberinit} =
-      qq|<td align=right>$ref->{customernumberinit}</td>|;
+    $column_data{description} = qq|<td><a href="am.pl?action=edit_business&id=$ref->{id}&description=$ref->{description}&s_date=$ref->{s_date}&|.
+                                qq|e_date=$ref->{e_date}&follow_up=$ref->{follow_up}&customernumberinit=$ref->{customernumberinit}&callback=$callback">$description</td>|;
+    $column_data{customernumberinit} = qq|<td align=right>$ref->{customernumberinit}</td>|;
     $column_data{salesman} = '<td>' . ($ref->{salesman} ? $::locale->text('Yes') : $::locale->text('No')) . '</td>';
-
+    $column_data{s_date} = qq|<td align=left>$ref->{s_date}</td>|;
+    $column_data{e_date} = qq|<td align=left>$ref->{e_date}</td>|;
+    $column_data{follow_up} = qq|<td align=left>$ref->{follow_up}</td>|;
     map { print "$column_data{$_}\n" } @column_index;
-
-    print qq|
-        </tr>
-|;
+    print qq|</tr>|;
   }
-
   print qq|
       </table>
-    </td>
-  </tr>
-  <tr>
-  <td><hr size=3 noshade></td>
-  </tr>
-</table>
-
-<br>
-<form method=post action=am.pl>
-
-<input name=callback type=hidden value="$form->{callback}">
-
-<input type=hidden name=type value=business>
-
-<input class=submit type=submit name=action value="|
-    . $locale->text('Add') . qq|">
-
+    </td></tr>
+    <tr><td><hr size=3 noshade></td></tr>
+  </table>
+  <br>
+  <form method=post action=am.pl>
+  <input name=callback type=hidden value="$form->{callback}">
+  <input type=hidden name=type value=business>
+  <input class=submit type=submit name=action value="| . $locale->text('Add') . qq|">
   </form>
-
   </body>
-  </html>
-|;
+  </html>|;
 
   $main::lxdebug->leave_sub();
 }
@@ -1216,21 +1182,15 @@ sub business_header {
 
   $form->{title}    = $locale->text("$form->{title} Business");
 
-  # $locale->text('Add Business')
-  # $locale->text('Edit Business')
-
   $form->{description} =~ s/\"/&quot;/g;
-  $form->{discount} =
-    $form->format_amount(\%myconfig, $form->{discount} * 100);
 
   my $salesman_code;
   if ($::lx_office_conf{features}->{vertreter}) {
     $salesman_code = qq|
-  <tr>
-    <th align="right">| . $locale->text('Representative') . qq|</th>
-    <td>| . $::cgi->checkbox(-name => "salesman", -value => 1, -label => '', 'checked' => $form->{salesman} ? 1 : 0) . qq|</td>
-  </tr>
-|;
+    <tr>
+      <th align="right">| . $locale->text('Representative') . qq|</th>
+      <td>| . $::cgi->checkbox(-name => "salesman", -value => 1, -label => '', 'checked' => $form->{salesman} ? 1 : 0) . qq|</td>
+    </tr>|;
   } else {
     $salesman_code = $::cgi->hidden(-name => 'salesman', -value => $form->{salesman} ? 1 : 0);
   }
@@ -1238,36 +1198,82 @@ sub business_header {
   $form->header;
 
   print qq|
-<body>
+    <body>
+      <form method=post action=am.pl>
+      <input type=hidden name=type value=business>
+      <table width=100%>
+      <tr><th class=listtop colspan=2>$form->{title}</th></tr>
+      <tr height="5"></tr>
+      <tr>
+        <th align=right>| . $locale->text('Type of Business') . qq|</th>
+        <td><input name=description size=30 value="$form->{description}"></td>
+      <tr>
+      <tr>
+        <th align=right>| . $locale->text('Customernumberinit') . qq|</th>
+        <td><input name=customernumberinit size=10 value=$form->{customernumberinit}></td>
+      </tr>
+      $salesman_code
+      <tr>
+        <th align=right>Startdatum (TT.MM.JJJJ) </th>
+        <td><input name=s_date size=8 value=$form->{s_date}></td>
+      </tr>
+      <tr>
+        <th align=right>Enddatum (TT.MM.JJJJ) </th>
+        <td><input name=e_date size=8 value=$form->{e_date}></td>
+      </tr>
+      <tr>
+        <th align="right">Folgetyp</th>
+        <td>
+          <select name="follow_up" id="follow_up">
+  	    <option></option>|; 
+            my $selection = $form->{follow_up};
+            my $myself = $form->{description};
+            foreach my $ref (@{$form->{all_business}}) {
+              map { $form->{$_} = $ref->{$_} }keys %$ref;
+              if($ref->{follow_up} ne $myself){
+                print qq|<option value=$ref->{follow_up}|;
+                if($ref->{follow_up} eq $selection){
+                  print qq| selected|;
+                }
+                print qq|>$ref->{follow_up}</option>|;
+              }
+            }
+          print qq|</select>
+        </td>
+      </tr>
+      <tr><td colspan=2><hr size=3 noshade></td></tr>
+      <tr>
+        <th align=right></th>
+        <th align=left>| . $locale->text('Discount') . qq|%</th>
+      </tr>|;
 
-<form method=post action=am.pl>
+  my $disc;
+  my $i=0;
+  foreach my $ref (@{ $form->{ALL} }) {
+    $i++;
+    $disc = $ref->{discount} * 100;
+    $disc = $form->format_amount(\%myconfig, $disc);
+    map { $form->{$_} = $ref->{$_} }keys %$ref;
+    print qq|
+      <tr>
+        <th align=right>$ref->{partsgroup} </th>
+        <td><input name="discount_$i" size=5 value= $disc ></td>
+        <input type=hidden name="id_$i" value= $ref->{id}>
+        <input type=hidden name="partsgroup_id_$i" value= $ref->{partsgroup_id}>
+        <input type="hidden" name="rowcount" value=$i>
+     </tr>
+    |;
+    $form->{"id_$i"} = $form->{id};
+    $form->{"discount_$i"} = $form->{discount};
+    $form->{"partsgroup_id_$i"} = $form->{partsgroup_id};
 
-<input type=hidden name=id value=$form->{id}>
-<input type=hidden name=type value=business>
+  }
 
-<table width=100%>
-  <tr>
-    <th class=listtop colspan=2>$form->{title}</th>
-  </tr>
-  <tr height="5"></tr>
-  <tr>
-    <th align=right>| . $locale->text('Type of Business') . qq|</th>
-    <td><input name=description size=30 value="$form->{description}"></td>
-  <tr>
-  <tr>
-    <th align=right>| . $locale->text('Discount') . qq| %</th>
-    <td><input name=discount size=5 value=$form->{discount}></td>
-  </tr>
-  <tr>
-    <th align=right>| . $locale->text('Customernumberinit') . qq|</th>
-    <td><input name=customernumberinit size=10 value=$form->{customernumberinit}></td>
-  </tr>
-$salesman_code
-  <td colspan=2><hr size=3 noshade></td>
-  </tr>
-</table>
-|;
 
+  $form->{rowcount} = $i;
+  $form->{s_date} = conv_dateq($form->{s_date});
+  $form->{e_date} = conv_dateq($form->{e_date});
+  print qq|  <tr><td colspan=2><hr size=3 noshade></td></table>|;
   $main::lxdebug->leave_sub();
 }
 
@@ -1281,7 +1287,11 @@ sub save_business {
   $main::auth->assert('config');
 
   $form->isblank("description", $locale->text('Description missing!'));
-  $form->{discount} = $form->parse_amount(\%myconfig, $form->{discount}) / 100;
+
+  for my $i (1..$form->{"rowcount"}){
+    $form->{"discount_$i"} = $form->parse_amount(\%myconfig, $form->{"discount_$i"}) / 100;
+  } 
+
   AM->save_business(\%myconfig, \%$form);
   $form->redirect($locale->text('Business saved!'));
 

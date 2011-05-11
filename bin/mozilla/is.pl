@@ -251,7 +251,11 @@ sub prepare_invoice {
       my ($dec)                = ($form->{"sellprice_$i"} =~ /\.(\d+)/);
       $dec                     = length $dec;
       my $decimalplaces        = ($dec > 2) ? $dec : 2;
-
+      if ($form->{"tradediscount_$i"} * 1 != 1) {
+        $form->{"price_old_$i"}  = $form->{"sellprice_$i"} / (1-$form->{"tradediscount_$i"});
+      } else {
+        $form->{"price_old_$i"}  = $form->{"sellprice_$i"};
+      }
       $form->{"sellprice_$i"}  = $form->format_amount(\%myconfig, $form->{"sellprice_$i"}, $decimalplaces);
       (my $dec_qty)            = ($form->{"qty_$i"} =~ /\.(\d+)/);
       $dec_qty                 = length $dec_qty;
@@ -549,7 +553,7 @@ sub update {
           # $form->{"sellprice_$i"} *= (1 - $form->{tradediscount});
           # $form->{"sellprice_$i"} /= $exchangerate;
         }
-        $form->{"price_old_$i"} = $form->{"sellprice_$i"};
+
         $form->{"listprice_$i"} /= $exchangerate;
 
         my $amount = $form->{"sellprice_$i"} * $form->{"qty_$i"} * (1 - $form->{"discount_$i"} / 100);

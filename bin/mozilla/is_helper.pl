@@ -61,7 +61,7 @@ sub get_part_for_new_row {
   $form->{print_and_post} = 0         if $form->{second_run};
 
   my $i  = $form->{rowcount};
-  map {$form->{"${_}_$i"} = $form->{${_}}} qw(partnumber description qty sellprice discount selected_unit unit_old basefactor pricegroup_old sellprice_pg price_new);
+  map {$form->{"${_}_$i"} = $form->{${_}}} qw(partnumber description qty sellprice discount selected_unit unit_old basefactor pricegroup_old sellprice_pg price_new price_old);
   if (   ($form->{"partnumber_$i"} ne "")
       || ($form->{"description_$i"} ne "")) {
 
@@ -87,10 +87,10 @@ sub get_part_for_new_row {
       $form->{"sellprice_$i"} = $sellprice if $sellprice;
       if (!(($form->{type} =~ /^sales/) || ($form->{type} =~ /^invoice/ && $form->{vc} =~ /^customer/))) {
          my $exchangerate = $form->{exchangerate} || 1;
-         $form->{"sellprice_$i"} *= (1 - $form->{tradediscount});
+         $form->{"price_old_$i"} = $form->{"sellprice_$i"};
+         $form->{"sellprice_$i"} *= (1 - $form->{"tradediscount_$i"});
          $form->{"sellprice_$i"} /= $exchangerate;   # if there is an exchange rate adjust sellprice
       }
-      $form->{"price_old_$i"} = $form->{"sellprice_$i"};
       $form->{"listprice_$i"} /= $form->{exchangerate} || 1;
       $form->{"qty_$i"} = $form->format_amount(\%myconfig, $form->{"qty_$i"});
       if ($::lx_office_conf{features}->{lizenzen}) {

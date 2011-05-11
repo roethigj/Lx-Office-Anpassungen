@@ -102,6 +102,45 @@ sub save_partsgroup {
   }
   do_query($form, $dbh, $query, @values);
 
+  $query = qq|SELECT DISTINCT description, to_char(s_date, 'DD.MM.YYYY') AS s_date, to_char(e_date, 'DD.MM.YYYY') AS e_date, follow_up FROM business|;
+  my $sth = $dbh->prepare($query);
+  $sth->execute || $form->dberror($query);
+  my @b_types;
+  while (my $ref = $sth->fetchrow_hashref("NAME_lc")) {
+    push @b_types , $ref;
+  }
+  foreach my $type(@b_types){
+    my @p_groups;
+    $query = qq|SELECT partsgroup_id FROM business WHERE description = '|. $type->{description} .qq|'|;
+    $sth = $dbh->prepare($query);
+    $sth->execute || $form->dberror($query);
+    while (my $ref = $sth->fetchrow_hashref("NAME_lc")) {
+      push @p_groups , $ref;
+    }
+    my @missing_group;
+    $query = qq|SELECT id FROM partsgroup WHERE|; 
+    foreach my $group(@p_groups){
+      $query .= qq| id != '|. $group->{partsgroup_id} .qq|' AND|;
+    }
+    my $laenge = length $query;
+    $laenge -=3;
+    $query = substr( $query,0,$laenge);
+    $sth = $dbh->prepare($query);
+    $sth->execute || $form->dberror($query);
+ 
+    while (my $ref = $sth->fetchrow_hashref("NAME_lc")) {
+      push @missing_group , $ref;
+    }
+
+    foreach my $missing(@missing_group){
+      $query = qq|INSERT INTO business
+                  (description, discount, partsgroup_id, s_date, e_date, follow_up) 
+                  VALUES ('|. $type->{description}. qq|','0','|. $missing->{id}. qq|', to_date('|. $type->{s_date}. qq|', 'DD.MM.YYYY'), to_date('|. 
+                              $type->{e_date}. qq|', 'DD.MM.YYYY'),'|. $type->{follow_up}. qq|')|;
+      $sth = $dbh->prepare($query);
+      $sth->execute || $form->dberror($query);
+    }
+  }
   $dbh->disconnect;
 
   $main::lxdebug->leave_sub();
@@ -144,6 +183,11 @@ sub delete_tuple {
 
   my $query = qq|DELETE FROM $table WHERE id = ?|;
   do_query($form, $dbh, $query, $form->{id});
+
+  if ($table eq "partsgroup"){
+    $query = qq|DELETE FROM business WHERE partsgroup_id = ?|;
+    do_query($form, $dbh, $query, $form->{id});
+  }
 
   $dbh->disconnect;
 

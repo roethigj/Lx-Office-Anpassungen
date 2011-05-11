@@ -409,9 +409,11 @@ sub form_partsgroup_footer {
 |;
 
   if ($form->{id} && $form->{orphaned}) {
-    print qq|
-<input type=submit class=submit name=action value="|
+    if ($form->{partsgroup} ne 'Artikel ohne Warengruppe') {
+      print qq|
+       <input type=submit class=submit name=action value="|
       . $locale->text('Delete') . qq|">|;
+    }
   }
 
 # button for saving history

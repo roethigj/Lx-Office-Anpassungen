@@ -230,7 +230,11 @@ sub prepare_invoice {
       my ($dec) = ($form->{"sellprice_$i"} =~ /\.(\d+)/);
       $dec           = length $dec;
       my $decimalplaces = ($dec > 2) ? $dec : 2;
-
+      if ($form->{"tradediscount_$i"} * 1 != 1) {
+        $form->{"price_old_$i"}  = $form->{"sellprice_$i"} / (1-$form->{"tradediscount_$i"});
+      } else {
+        $form->{"price_old_$i"}  = $form->{"sellprice_$i"};
+      }
       $form->{"sellprice_$i"} =
         $form->format_amount(\%myconfig, $form->{"sellprice_$i"},
                              $decimalplaces);
@@ -496,9 +500,12 @@ sub update {
 
         if ($sellprice) {
           $form->{"sellprice_$i"} = $sellprice;
+          $form->{"price_old_$i"} = $form->{"sellprice_$i"};
         } else {
           # if there is an exchange rate adjust sellprice
+          $form->{"price_old_$i"} = $form->{"sellprice_$i"};
           $form->{"sellprice_$i"} /= $exchangerate;
+          $form->{"sellprice_$i"} *= (1 - ($form->{"tradediscount_$i"}));
         }
 
         my $amount                   = $form->{"sellprice_$i"} * $form->{"qty_$i"} * (1 - $form->{"discount_$i"} / 100);
