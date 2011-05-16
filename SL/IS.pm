@@ -1987,7 +1987,7 @@ sub get_pricegroups_new {
   my $locale   = $main::locale;
   my ($self, $myconfig, $form, $i) = @_;
   my $id = $form->{"id_$i"};
-  my $dbh = $form->dbconnect($myconfig);
+  my $dbh = $form->get_standart_dbh;
   my $all_units = AM->retrieve_units($myconfig, $form);
   $form->{"PRICES"}{$i} = [];
   # Für berechnungen macht es sich besser nur den angezeigten Preis zu runden.
