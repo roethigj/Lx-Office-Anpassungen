@@ -1796,7 +1796,7 @@ sub save {
 
   my $i;
   # load previous variables
-  if ($form->{previousform}) {
+  if ($form->{previousform} && $form->{redraw} ne "1") {
 
     # save the new form variables before splitting previousform
     map { $newform{$_} = $form->{$_} } keys %$form;

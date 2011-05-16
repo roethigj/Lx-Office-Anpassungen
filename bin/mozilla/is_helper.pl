@@ -37,7 +37,7 @@ use SL::IR;
 #use SL::PE;
 #use SL::OE;
 use Data::Dumper;
-#use List::Util qw(max sum);
+use List::Util qw(max sum);
 
 require "bin/mozilla/io.pl";
 #require "bin/mozilla/invoice_io.pl";
@@ -56,7 +56,7 @@ sub get_part_for_new_row {
   my $form     = $main::form;
   my %myconfig = %main::myconfig;
 
-  $main::auth->assert('invoice_edit vendor_invoice_edit');
+  $main::auth->assert('invoice_edit | vendor_invoice_edit');
 
   $form->{print_and_post} = 0         if $form->{second_run};
 
@@ -76,7 +76,7 @@ sub get_part_for_new_row {
       $form->{"discount_$i"} = $form->format_amount(\%myconfig, $form->{"$form->{vc}_discount"} * 100);
     }
 
-    if ($rows <= 1) {
+    if ($rows == 1) {
       my $sellprice = $form->parse_amount(\%myconfig, $form->{"sellprice_$i"});
       map { $form->{item_list}[$i]{$_} =~ s/\"/&quot;/g } qw(partnumber description unit);
       map { $form->{"${_}_$i"} = $form->{item_list}[0]{$_} } keys %{ $form->{item_list}[0] };
@@ -103,8 +103,13 @@ sub get_part_for_new_row {
         }
       }
       map { $form->{"${_}_$i"} = $form->format_amount(\%myconfig, $form->{"${_}_$i"}, $decimalplaces) } qw(listprice sellprice lastcost);
+      display_one_row($form, $i, $i+1);
+    } elsif ($rows > 1) {
+      print $form->ajax_response_header(),"vieleartikel";
+    } else {
+      print $form->ajax_response_header(),"vieleartikel0";
     }
-    display_one_row($form, $i, $i+1);
+   
   }  
   $main::lxdebug->leave_sub();
 }

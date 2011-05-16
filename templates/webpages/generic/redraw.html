@@ -253,28 +253,48 @@ function newLine(e) {
            unit_old:$('input[name="unit_old_'+row+'"]').val(), basefactor:$('input[name="basefactor_'+row+'"]').val(), 
            pricegroup_old:$('input[name="pricegroup_old_'+row+'"]').val(), sellprice_pg:$('select[name="sellprice_pg_'+row+'"]').val(),
            price_factor_id:$('select[name="price_factor_id_'+row+'"]').val() },
-           function(data) { 
-             $('input[name*="_'+row+'"]:hidden').remove();
-             $('input[name="partnumber_'+row+'"]').autocomplete("destroy");
-             $('input[name="description_'+row+'"]').autocomplete("destroy");  
-             theTableBody.deleteRow(row*2-1);
-             theTableBody.deleteRow(row*2-1);                
-             var newRow = theTableBody.insertRow(row*2-1);
-             if ($('input[name="rowcount"]').val() != row){
-               var emptyrow = data.lastIndexOf("<tr val") - 1;
-               data = data.substring(0,emptyrow); 
-             }  
-             newRow.outerHTML=data;
-             $('form[name="invoice"]').forceRedraw(true);      
-             var where = 0;
-             for (var i = 0; i < theTableBody.rows.length; i++) {
-               where = i+1;
+           function(data) {
+             if (data.search(/^vieleartikel/) != -1) {
+               if (data.search(/vieleartikel0$/) != -1) {
+                 $.get("io.pl?action=new_item",{vc:$('input[name="vc"]').val(), qty:$('input[name="qty_'+row+'"]').val(), redraw:'1',
+                   partnumber:$('input[name="partnumber_'+row+'"]').val(), description:$('input[name="description_'+row+'"]').val(),
+                   rowcount:row, sellprice:$('input[name="sellprice_'+row+'"]').val(), unit:$('select[name="unit_'+row+'"]').val(),
+                   longdescription:$('input[name="longdescription_'+row+'"]').val(), sellprice:$('input[name="sellprice_'+row+'"]').val()
+                   }, 
+                   function (data2) { 
+                     var newwin = window.open("","Fenstername","left=" + window.outerWidth * 0.1 + " top=" + window.outerHeight * 0.1 + ",width=" + window.outerWidth * 0.8 + ",height=" + window.outerHeight * 0.8 + ",status=no,scrollbars=yes");
+                     newwin.document.write(data2);
+                   $(document).ready( function(){ $('input[name="partnumber_' + row + '"]').select() });
+                   }
+                 );
+                 return false;
+               } else {
+                 part_selection_window('partnumber_'+row,'description_'+row,'id_'+row,0,$('form').attr('name'),'','newLine()');
+                 return false;
+               }
+             } else {
+               $('input[name*="_'+row+'"]:hidden').remove();
+               $('input[name="partnumber_'+row+'"]').autocomplete("destroy");
+               $('input[name="description_'+row+'"]').autocomplete("destroy");  
+               theTableBody.deleteRow(row*2-1);
+               theTableBody.deleteRow(row*2-1);                
+               var newRow = theTableBody.insertRow(row*2-1);
+               if ($('input[name="rowcount"]').val() != row){
+                 var emptyrow = data.lastIndexOf("<tr val") - 1;
+                 data = data.substring(0,emptyrow); 
+               }  
+               newRow.outerHTML=data;
+               $('table[id="display_row"]').forceRedraw(true);      
+               var where = 0;
+               for (var i = 0; i < theTableBody.rows.length; i++) {
+                 where = i+1;
+               }
+               where = Math.floor(where/2);
+               $('input[name="rowcount"]').val(where);
+               summen();
+               auto();
+               $(document).ready( function(){ $('input[name*="partnumber"]').focus() });
              }
-             where = Math.floor(where/2);
-             $('input[name="rowcount"]').val(where);
-             summen();
-             auto();
-             $(document).ready( function(){ $('input[name*="partnumber"]').focus() });
            } ); 
     return false;        
   } else {

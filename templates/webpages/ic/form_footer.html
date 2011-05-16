@@ -16,8 +16,11 @@
   <input type="hidden" name="assembly_rows" value="[% HTML.escape(assembly_rows) %]" -->
   [%- END %]
 
+
+
   <input type="hidden" name="callback" value="[% HTML.escape(callback) %]">
   <input type="hidden" name="previousform" value="[% HTML.escape(previousform) %]">
+  <input type="hidden" name="redraw" value="[% HTML.escape(redraw) %]">
   <input type="hidden" name="taxaccount2" value="[% HTML.escape(taxaccount2) %]">
   <input type="hidden" name="vc" value="[% HTML.escape(vc) %]">
   <tr>
@@ -51,9 +54,37 @@
 
 </div>
 
+<script type="text/javascript">
+function test () {
+  if ($('input[name="redraw"]').val() == "1") {
+    //keinfehlermarker  
+    $.post("ic.pl?action=save", $('form[name="ic"]').serialize(), function (data) { 
+        if ((data.search(/message_error/) != -1) && !(data.search(/keinfehlermarker/) != -1)) {
+          var pos1 = data.indexOf("<p class=\"message_error_label\">") + 31;
+          var pos2 = data.indexOf("</p>");
+          var msg = data.substring(pos1,pos2);
+          pos2 = pos1 - 31;
+          pos1 = data.indexOf("<div class=\"message_error\">") + 27;
+          var ttl = data.substring(pos1,pos2);
+          jAlert(msg, ttl);
+        } else {
+          window.opener.document.getElementsByName('qty_'+$('input[name="rowcount"]').val())[0].focus();         
+          window.opener.newLine();
+          self.close();
+        }
+      }
+    );
+    return false;
+  } else {
+    return true;
+  }
+}
+</script> 
+
+
 <input class="submit" type="submit" name="action" value="[% 'Update' | $T8 %]">
 <input type="hidden" name="price_rows" value="[% HTML.escape(price_rows) %]">
-<input class="submit" type="submit" name="action" value="[% 'Save' | $T8 %]">
+<input class="submit" type="submit" name="action" value="[% 'Save' | $T8 %]" onclick="return test()">
 
   [%- IF id %]
     [%- UNLESS previousform %]
