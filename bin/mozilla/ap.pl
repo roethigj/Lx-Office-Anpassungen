@@ -1196,7 +1196,7 @@ sub yes {
 sub search {
   $main::lxdebug->enter_sub();
 
-  $main::auth->assert('general_ledger | invoice_edit');
+  $main::auth->assert('general_ledger | vendor_invoice_edit');
 
   my $form     = $main::form;
   my %myconfig = %main::myconfig;
@@ -1270,7 +1270,7 @@ sub ap_transactions {
        vendornumber country ustid taxzone payment_terms charts);
 
   my @hidden_variables = map { "l_${_}" } @columns;
-  push @hidden_variables, "l_subtotal", qw(open closed vendor invnumber ordnumber transaction_description notes project_id transdatefrom transdateto);
+  push @hidden_variables, "l_subtotal", qw(open closed vendor invnumber ordnumber transaction_description notes project_id transdatefrom transdateto department);
 
   my $href = build_std_url('action=ap_transactions', grep { $form->{$_} } @hidden_variables);
 

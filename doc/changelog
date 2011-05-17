@@ -1,10 +1,23 @@
-###################################
+####################################
 # Veränderungen von Lx-Office ERP #
 ###################################
 
   ab Feb 2011 Release 2.7-unstable
 
 
+
+  Größere neue Features:
+
+  - Es ist jetzt möglich wiederkehrende Rechnungen zu definieren und zu
+    konfigurieren, dies geschieht im Formular für den Verkaufsauftrag.
+    Mögliche Periodizitäten sind monatlich/quartalsweise/jährlich. Die
+    Hauptkonfiguration hierzu findet sich in der lx_office.conf im Abschnitt
+    [periodic_invoices]
+
+  - Die Überprüfung, wann wiederkehrende Rechnungen erstellt werden sollen,
+    geschieht durch ein weiteres neues Feature, den Taskserver.  Konfiguriert
+    wird der Taskserver in der lx_office.conf im Abschnitt [task_server]. Der
+    Taskserver läuft als eigener daemon im System, ähnlich cron.
 
   Kleinere neue Features und Detailverbesserungen:
 
@@ -13,10 +26,27 @@
 
   - Bei Verkaufsgutschriften zusätzlich noch die Rechnungsnummer mitnehmen, damit der Bezug klarer ist.
 
+  - Kontenübersicht. Bei Auswahl Bilanz und keinem closedto (Bücher-Abschluss) wurden keine Konten
+    ausgewählt, falls das Installationsjahr gleich dem laufenden Jahr ist
+
+  - Verkauf -> Berichte -> Filter nach Abteilungen wieder aktiviert
+
+  - Dokumentensystem -> der Name der Zahlart ist in den Dokumenten verfügbar, dies ermoglicht größere
+                        Flexiblität in den Vorlagen über if-Abfragen
+
   Liste gefixter Bugs aus dem Bugtracker:
 
   - Bugfix 1613: Status teilweise
-
+  - Bugfix 1642: Lieferantenrabatt wird korrekt gespeichert, aber nicht mehr angezeigt
+  - Bugfix 1626: Beim Festlegen der Standardkonten kann beim Warenbestand eine Überschrift ausgewählt werden.
+  - Bugfix 1584: Summen und Saldenliste: Export to PDF/CSV in EÜR Modus falsch
+  - Bugfix 1597: Report Lagerbestand wirft Fehler, wenn Artikelnummer ausgeblendet werden soll
+  - Bugfix 1569: Zahlungseingang löschen bei Rechnung
+  - Bugfix 1632: Nach Installation 2.6.2-0 aus .deb funktioniert CSV-Import nicht
+  - Bugfix 1633: Stammdatenaufruf aus SEPA-Modul
+  - Bugfix 1575: Kundenrabatt geht verloren
+  - Bugfix 1647: Lieferanten-Einkaufspreise verlieren Nachkommastellen
+  - Bugfix 1630: Rabatt wird auf der Rechnung auch auf nicht rabattierfähige Artikel gewährt
 
 2011-02-02 - Release 2.6.2
 

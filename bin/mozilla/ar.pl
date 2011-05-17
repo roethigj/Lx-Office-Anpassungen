@@ -1325,7 +1325,6 @@ sub ar_transactions {
 
   my ($callback, $href, @columns);
 
-  $form->{customer} = $form->unescape($form->{customer});
   ($form->{customer}, $form->{customer_id}) = split(/--/, $form->{customer});
 
   report_generator_set_default_sort('transdate', 1);
@@ -1342,7 +1341,7 @@ sub ar_transactions {
        marge_total marge_percent globalprojectnumber customernumber country ustid taxzone payment_terms charts customertype);
 
   my @hidden_variables = map { "l_${_}" } @columns;
-  push @hidden_variables, "l_subtotal", qw(open closed customer invnumber ordnumber transaction_description notes project_id transdatefrom transdateto);
+  push @hidden_variables, "l_subtotal", qw(open closed customer invnumber ordnumber transaction_description notes project_id transdatefrom transdateto employee_id salesman_id);
 
   $href = build_std_url('action=ar_transactions', grep { $form->{$_} } @hidden_variables);
 
