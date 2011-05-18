@@ -621,7 +621,7 @@ sub display_one_row {
 
     if ($is_delivery_order) {
       map { $form->{"${_}_${i}"} = $form->format_amount(\%myconfig, $form->{"${_}_${i}"}) } qw(sellprice discount lastcost);
-      push @hidden_vars, qw(sellprice discount price_factor_id lastcost);
+      push @hidden_vars, qw(sellprice discount not_discountable price_factor_id lastcost);
       push @hidden_vars, "stock_${stock_in_out}_sum_qty", "stock_${stock_in_out}";
     }
 
@@ -975,17 +975,24 @@ sub new_item {
   _check_io_auth();
 
   my $price_key = ($form->{type} =~ m/request_quotation|purchase_order/) || ($form->{script} eq 'ir.pl') ? 'lastcost' : 'sellprice';
-
-  # change callback
-  $form->{old_callback} = $form->escape($form->{callback}, 1);
-  $form->{callback}     = $form->escape("$form->{script}?action=display_form", 1);
+  
+  if ($form->{redraw}) { 
+    map {$form->{"${_}_$form->{rowcount}"} = $form->{${_}}} qw(partnumber description qty sellprice longdescription unit);
+    # change callback
+    $form->{old_callback} = $form->escape($form->{callback}, 1);
+    $form->{callback}     = $form->escape("$form->{script}?action=display_form", 1);
+  } else {
+    # change callback
+    $form->{old_callback} = $form->escape($form->{callback}, 1);
+    $form->{callback}     = $form->escape("$form->{script}?action=display_form", 1);
+  }
 
   # save all form variables except action in the session and keep the key in the previousform variable
   my $previousform = $::auth->save_form_in_session(skip_keys => [ qw(action) ]);
 
   my @HIDDENS;
   push @HIDDENS,      { 'name' => 'previousform', 'value' => $previousform };
-  push @HIDDENS, map +{ 'name' => $_,             'value' => $form->{$_} },                       qw(rowcount vc);
+  push @HIDDENS, map +{ 'name' => $_,             'value' => $form->{$_} },                       qw(rowcount vc redraw);
   push @HIDDENS, map +{ 'name' => $_,             'value' => $form->{"${_}_$form->{rowcount}"} }, qw(partnumber description unit);
   push @HIDDENS,      { 'name' => 'taxaccount2',  'value' => $form->{taxaccounts} };
   push @HIDDENS,      { 'name' => $price_key,     'value' => $form->parse_amount(\%myconfig, $form->{"sellprice_$form->{rowcount}"}) };
