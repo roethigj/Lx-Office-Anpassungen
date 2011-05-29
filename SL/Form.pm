@@ -669,7 +669,6 @@ sub header {
   push @header, '<script type="text/javascript" src="js/jquery.js"></script>',
                 '<script type="text/javascript" src="js/jquery.autocomplete.js"></script>',
                 '<script type="text/javascript" src="js/jquery.alerts.js"></script>',
-                '<link type="text/css" href="css/start/jquery-ui-1.8.11.custom.css" rel="stylesheet" />',
                 '<link type="text/css" href="css/jquery.alerts.css" rel="stylesheet" />',
                 '<script type="text/javascript" src="js/common.js"></script>',
                 '<style type="text/css">@import url(js/jscalendar/calendar-win2k-1.css);</style>',

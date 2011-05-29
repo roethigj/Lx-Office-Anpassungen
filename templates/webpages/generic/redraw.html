@@ -234,6 +234,44 @@ function newLine(e) {
     $('input[id="'+$('input[name="vc"]').val()+'"]').focus(); 
     return false;
   }
+
+var taxzone_id = $('select[name="taxincluded"]').val();
+var tax0 = 0;
+var tax7 = 0;
+var tax19 = 0;
+var taxtable = $('table:has(th:contains("[% 'Total' | $T8 %]"))');
+var taxbody = taxtable[1].tBodies[0];
+var netto = 0;
+  var taxrow = 0; 
+  for (var j = 0;  j < taxbody.rows.length; j++) {
+    taxrow = j;
+  }
+if (taxzone_id == "1" || taxzone_id == "4") {
+// ohne Umsatzsteuer
+  
+
+
+
+} else {
+// mit Umsatzsteuer
+  if ($('input[name="taxincluded"]').attr('checked')){
+    var taxincluded = "1";
+  
+
+
+  } else {
+    var taxincluded = "0";
+    var totalrow= taxbody.rows;
+    var totalcell = totalrow[taxrow].cells;
+    var total = totalcell[1].innerHTML;
+    alert(taxrow+" "+total);
+
+
+
+  }
+}
+
+
   
   var row = 0; 
   for (var j = 0;  j < theTableBody.rows.length && $('[name$="_'+j+'"]').is(":focus") == false; j++) {
