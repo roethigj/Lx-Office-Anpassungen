@@ -166,6 +166,8 @@ Bestandteil einer Standard-Perl-Installation sind:
    * XML::Writer
 
    * YAML
+   
+   * JSON
 
    Gegenüber Version 2.6.0 sind zu dieser Liste 2 Pakete hinzugekommen,
 `URI' und `XML::Writer' sind notwendig. Ohne startet Lx-Office nicht.

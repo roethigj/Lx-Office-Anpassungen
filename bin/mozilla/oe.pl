@@ -32,6 +32,7 @@
 #======================================================================
 
 use POSIX qw(strftime);
+use JSON;
 
 use SL::DO;
 use SL::FU;
@@ -630,7 +631,7 @@ sub update {
         IS->get_pricegroups_for_parts(\%myconfig, \%$form);
 
         # build up html code for prices_$i
-        &set_pricegroup($i);
+        &set_pricegroup($i);  
       }
 
       display_form();
@@ -647,8 +648,8 @@ sub update {
 
         display_form();
       } else {
-        $form->{"id_$i"}   = 0;
-        new_item();
+       $form->{"id_$i"}   = 0;
+       new_item();
       }
     }
   }
@@ -2014,3 +2015,4 @@ sub dispatcher {
 
   $::form->error($::locale->text('No action defined.'));
 }
+
