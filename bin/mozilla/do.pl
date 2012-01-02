@@ -409,8 +409,12 @@ sub update_delivery_order {
         display_form();
 
       } else {
-        $form->{"id_$i"}   = 0;
-        new_item();
+       # $form->{"id_$i"}   = 0;
+       # new_item();
+        $form->{rowcount}--;
+        $form->{"discount_$i"} = "";
+        $form->{"qty_$i"} = "";
+        &display_form;
       }
     }
   }
