@@ -786,7 +786,7 @@ sub search {
   my $query =
     qq|SELECT ct.*, b.description AS business | .
     qq|FROM $cv ct | .
-    qq|LEFT JOIN business.b ON (ct.business_id = b.id) | .
+    qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
     qq|WHERE $where|;
 
   my @saved_values = @values;
@@ -806,7 +806,7 @@ sub search {
         qq|  (a.amount = a.paid) AS closed | .
         qq|FROM $cv ct | .
         qq|JOIN $ar a ON (a.${cv}_id = ct.id) | .
-        qq|LEFT JOIN business.b ON (ct.business_id = b.id) | .
+        qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
         qq|WHERE $where AND (a.invoice = '1')|;
 
       $union = qq|UNION|;
@@ -823,7 +823,7 @@ sub search {
         qq|  'oe' AS module, 'order' AS formtype, o.closed | .
         qq|FROM $cv ct | .
         qq|JOIN oe o ON (o.${cv}_id = ct.id) | .
-        qq|LEFT JOIN business.b ON (ct.business_id = b.id) | .
+        qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
         qq|WHERE $where AND (o.quotation = '0')|;
 
       $union = qq|UNION|;
@@ -840,7 +840,7 @@ sub search {
         qq|  'oe' AS module, 'quotation' AS formtype, o.closed | .
         qq|FROM $cv ct | .
         qq|JOIN oe o ON (o.${cv}_id = ct.id) | .
-        qq|LEFT JOIN business.b ON (ct.business_id = b.id) | .
+        qq|LEFT JOIN business b ON (ct.business_id = b.id) | .
         qq|WHERE $where AND (o.quotation = '1')|;
     }
   }
