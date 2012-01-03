@@ -485,6 +485,8 @@ sub header {
   push @header, "<style type='text/css'>\@page { size:landscape; }</style>" if $self->{landscape};
   push @header, "<link rel='shortcut icon' href='$self->{favicon}' type='image/x-icon'>" if -f $self->{favicon};
   push @header, '<script type="text/javascript" src="js/jquery.js"></script>',
+                '<script type="text/javascript" src="js/jquery-ui.js"></script>',
+                '<link type="text/css" href="css/ui-lightness/jquery-ui-1.8.12.custom.css" rel="stylesheet" />',
                 '<script type="text/javascript" src="js/common.js"></script>',
                 '<link rel="stylesheet" type="text/css" href="js/jscalendar/calendar-win2k-1.css">',
                 '<script type="text/javascript" src="js/jscalendar/calendar.js"></script>',

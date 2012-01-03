@@ -22,21 +22,14 @@
 
 
      <tr>
-      <th align=right>[% 'Customer' | $T8 %]</th>
-      <td colspan=3>
-            [%- INCLUDE 'generic/multibox.html'
-                 name          = 'customer',
-                 default       = oldcustomer,
-                 style         = 'width: 250px',
-                 DATA          = ALL_VC,
-                 id_sub        = 'vc_keys',
-                 label_key     = 'name',
-                 select        = vc_select,
-                 limit         = vclimit,
-                 show_empty    = 1,
-                 allow_textbox = 1,
-                 -%]
-      </td>
+       [%- INCLUDE 'generic/vc_autocomplete.html' %]
+       <script type='text/javascript'>
+         $('input[id="[%- vc %]"]').autocomplete( "option", "select", 
+                           function(event, ui) {
+                        $('input[name="[%- vc %]"]').val( ui.item.vc_name+'--'+ui.item.vc_id );                       
+                        return false;}
+                       );
+       </script>
      </tr>
       <tr>
        <th align="right" nowrap>[% 'Customer Number' | $T8 %]</th>

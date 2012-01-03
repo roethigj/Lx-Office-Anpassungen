@@ -68,6 +68,7 @@ sub search_invoice {
                    "customers"    => "ALL_VC");
 
   $form->{vc_keys}   = sub { "$_[0]->{name}--$_[0]->{id}" };
+  $form->{vc} = 'customer';
 
   $form->header;
   print $form->parse_html_template('vk/search_invoice', { %myconfig });

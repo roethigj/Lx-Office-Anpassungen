@@ -1,0 +1,52 @@
+<script type='text/javascript'>
+  var cache = {};
+  var lastXhr;
+  $('input[name="partnumber_[%- rowcount %]"]').autocomplete({
+    source: function( request, response ) {
+              var term = request.term;
+              if ( term in cache ) {
+                response( cache[ term ] );
+                return;
+              }
+              lastXhr = $.getJSON('controller.pl?action=Autocomplete/part_search&INPUT_ENCODING=utf8&column=partnumber', request, 
+                          function (data, status, xhr ) {
+                            cache[ term ] = data;
+                            if ( xhr === lastXhr ) { response ( data );}
+                          }
+                        );
+            },
+    minLength: 2,
+    delay: 100,
+    open: function(event, ui) { $("li:odd").css("background-color", "#ECE9D8");},
+    select: function(event, ui) { 
+            $('input[name="partnumber_[%- rowcount %]"]').val( ui.item.partnumber );
+            $('input[name="description_[%- rowcount %]"]').val( ui.item.desc );
+            $('input[name="qty_[%- rowcount %]"]').focus();
+            return false;
+            }
+  });
+  $('input[name="description_[%- rowcount %]"]').autocomplete({
+    source: function( request, response ) {
+              var term = request.term;
+              if ( term in cache ) {
+                response( cache[ term ] );
+                return;
+              }
+              lastXhr = $.getJSON('controller.pl?action=Autocomplete/part_search&INPUT_ENCODING=utf8&column=description', request, 
+                          function (data, status, xhr ) {
+                            cache[ term ] = data;
+                            if ( xhr === lastXhr ) { response ( data );}
+                          }
+                        );
+            },
+    minLength: 2,
+    delay: 100,
+    open: function(event, ui) { $("li:odd").css("background-color", "#ECE9D8");},
+    select: function(event, ui) { 
+            $('input[name="partnumber_[%- rowcount %]"]').val( ui.item.partnumber );
+            $('input[name="description_[%- rowcount %]"]').val( ui.item.desc );
+            $('input[name="qty_[%- rowcount %]"]').focus();
+            return false;
+            }
+  });
+</script>
