@@ -7,6 +7,29 @@
   <script type="text/javascript">
    $('#cb_show_details').click(function(){ $('[id^="row2"]').toggle() });
   </script>
+  <script type="text/javascript">
+    jQuery.extend(jQuery.expr[':'], {
+      focus: function(element) { 
+        return element == document.activeElement; 
+      }
+    });
+  </script>
+  <script type="text/javascript">
+    window.captureEvents(Event.KEYPRESS);
+    window.onkeypress = Ausgabe;
+    function Ausgabe(Ereignis) {
+      if(event.keyCode == 13) { 
+        if ($('input[name*="partnumber"]').is(":focus") || $('input[name*="description"]').is(":focus")) {
+          $(document).ready( function(){ $('input[name*="qty"]').focus() });
+          return false;
+        } else {
+          return true;
+        }
+      } else { 
+      return true;
+      }
+    }
+  </script>
   <table id='display_row' width="100%">
    <tr class="listheading">
 [%- FOREACH header = HEADER %]
