@@ -31,20 +31,7 @@
     <td valign="top">
       <table>
         <tr>
-          <th align="right">[% 'Vendor' | $T8 %]</th>
-          <td>
-            [%- INCLUDE 'generic/multibox.html'
-                 name          = 'vendor',
-                 style         = 'width: 250px',
-                 DATA          = ALL_VENDORS,
-                 id_sub        = 'vc_keys',
-                 label_key     = 'name',
-                 select        = vc_select,
-                 limit         = vclimit,
-                 allow_textbox = 1,
-                 onChange      = "document.getElementById('update_button').click();" -%]
-            <input type="button" value="[% 'Details (one letter abbreviation)' | $T8 %]" onclick="show_vc_details('[% vc | html %]')">
-          </td>
+          [%- INCLUDE 'generic/vc_autocomplete.html' %]
           <input type="hidden" name="vendor_klass" value="[% HTML.escape(vendor_klass) %]">
           <input type="hidden" name="vendor_id" value="[% HTML.escape(vendor_id) %]">
           <input type="hidden" name="oldvendor" value="[% HTML.escape(oldvendor) %]">

@@ -103,10 +103,12 @@ sub add {
   $form->{SHOW_CUSTOMER_SELECTION}      = $form->{all_customer}    && scalar @{ $form->{all_customer} };
   $form->{SHOW_DUNNING_LEVEL_SELECTION} = $form->{DUNNING}         && scalar @{ $form->{DUNNING} };
   $form->{SHOW_DEPARTMENT_SELECTION}    = $form->{all_departments} && scalar @{ $form->{all_departments} || [] };
-
+  $form->get_lists("customers" => "ALL_CUSTOMERS");
+  $form->{vclimit}  = $myconfig{vclimit};
   $form->{title}    = $locale->text('Start Dunning Process');
   $form->{jsscript} = 1;
-  $form->{fokus}    = "search.customer";
+  $form->{fokus}    = "customer";
+  $form->{vc} = "customer";
   $form->header();
 
   print $form->parse_html_template("dunning/add");
@@ -307,12 +309,15 @@ sub search {
   DN->get_config(\%myconfig, \%$form);
 
   $form->{SHOW_CUSTOMER_DDBOX}   = scalar @{ $form->{ALL_CUSTOMERS} } <= $myconfig{vclimit};
+  $form->{vclimit} = $myconfig{vclimit};
   $form->{SHOW_DEPARTMENT_DDBOX} = scalar @{ $form->{ALL_CUSTOMERS} };
   $form->{SHOW_DUNNING_LEVELS}   = scalar @{ $form->{DUNNING} };
 
   $form->{jsscript} = 1;
   $form->{title}    = $locale->text('Dunnings');
-  $form->{fokus}    = "search.customer";
+  $form->{fokus}    = "customer";
+  $form->{salesman_labels} = sub { $_[0]->{"name"} || $_[0]->{"login"} };
+  $form->{vc} = "customer";
 
   $form->header();
 

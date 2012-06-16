@@ -109,24 +109,11 @@
     <tr valign="top">
      <td>
       <table width="100%">
-       <tr>
+        <tr>
         <input type="hidden" name="[% vc %]_id" value="[% HTML.escape(the_vc_id) %]">
         <input type="hidden" name="old[% vc %]" value="[% HTML.escape(the_oldvc) %]">
-        <th align="right">[% IF is_customer %][% 'Customer' | $T8 %][% ELSE %][% 'Vendor' | $T8 %][% END %]</th>
-        <td>
-         [%- UNLESS !delivered && SHOW_VC_DROP_DOWN %]
-         <input type="text" value="[% HTML.escape(oldvcname) %]" name="[% HTML.escape(vc) %]"[% RO %]>
-         [%- ELSE %]
-         <select name="[% vc %]" class="fixed_width" onchange="document.do.update_button.click();"[% RO %]>
-          [%- FOREACH row = ALL_VC %]
-          <option value="[% HTML.escape(row.value) %]" [% IF the_oldvc == row.value %] selected[% END %]>[% HTML.escape(row.name) %]</option>
-          [%- END %]
-         </select>
-         <input type="hidden" name="select[% vc %]" value="1">
-         [%- END %]
-         <input type="button" value="[% 'Details (one letter abbreviation)' | $T8 %]" onclick="show_vc_details('[% vc %]')">
-        </td>
-
+          [%- INCLUDE 'generic/vc_autocomplete.html' %]
+        </tr>
         [%- IF ALL_CONTACTS.size %]
         <tr>
          <th align="right">[% 'Contact Person' | $T8 %]</th>

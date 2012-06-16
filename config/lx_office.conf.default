@@ -27,8 +27,8 @@ session_timeout = 480
 host     = localhost
 port     = 5432
 db       = lxerp_auth
-user     = postgres
-password =
+user     = tryton
+password = Afc)(0Vm1
 
 [authentication/ldap]
 # This section is only relevant if 'module' is set to 'LDAP'. It names

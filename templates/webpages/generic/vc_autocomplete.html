@@ -1,0 +1,96 @@
+[%-  Autocomplete__limit = vclimit != '' ? vclimit : 200
+     List = vc == 'customer' ? ALL_CUSTOMERS : ALL_VENDORS
+     List = List.size < 2 ? ALL_VC : List
+     Autocomplete__show  = Autocomplete__limit < List.size ? 1 : 0-%]
+[%- IF Autocomplete__show %]
+  <th align="right">[% IF vc == 'customer' %][% 'Customer' | $T8 %][% ELSE %][% 'Vendor' | $T8 %][% END %]
+    <select id="s_column" name="s_column" onChange="s_change()">
+      <option value="name">[% 'Name' | $T8 %]</option>
+      <option value="customernumber">[% 'Number' | $T8 %]</option>
+      <option value="street">[% 'Street' | $T8 %]</option>
+      <option value="zipcode">[% 'Zipcode' | $T8 %]</option>
+      <option value="city">[% 'City' | $T8 %]</option>
+    </select>
+    <script type='text/javascript'>
+      function s_change() {
+        $('input[id="[%- vc %]"]').autocomplete( "option", "source", 
+          function( request, response ) {
+            var term = request.term;
+	    if ( term in cache ) {
+              response( cache[ term ] );
+              return;
+            }
+            lastXhr = $.getJSON('controller.pl?action=Autocomplete/ct_search&INPUT_ENCODING=utf8&vc=[%- vc %]&column='+$('#s_column option:selected').attr('value'), request,
+                        function (data, status, xhr ) {
+                          cache[ term ] = data;
+                          if ( xhr === lastXhr ) { response ( data );}
+                        }
+                      );
+          } 
+        );
+        $('input[name="[%- vc %]"]').select();
+      }
+    </script>
+  </th>
+  <td>
+    [%- INCLUDE 'generic/multibox.html'
+        name          = vc,
+        id            = vc,        
+        style         = 'width: 250px',
+        DATA          = List,
+        id_sub        = 'vc_keys',
+        label_key     = 'name',
+        select        = vc_select,
+        allow_textbox = 1,
+        onChange      = "document.getElementById('update_button').click();" -%]
+    <input type="button" value="[% 'Details (one letter abbreviation)' | $T8 %]" onclick="show_vc_details('[% HTML.escape(vc) %]')">
+    <script type='text/javascript'>
+      $('input[name="[%- vc %]"]').focus();
+      var cache = {};
+      var lastXhr;
+      $('input[id="[%- vc %]"]').autocomplete({
+        source: function( request, response ) {
+                  var term = request.term;
+                  if ( term in cache ) {
+                    response( cache[ term ] );
+                    return;
+                  }
+                  lastXhr = $.getJSON('controller.pl?action=Autocomplete/ct_search&INPUT_ENCODING=utf8&vc=[%- vc %]&column='+$('#s_column option:selected').attr('value'), request,
+                              function (data, status, xhr ) {
+                                cache[ term ] = data;
+                                if ( xhr === lastXhr ) { response ( data );}
+                              }
+                            );
+                },
+        autoFocus: true,
+        minLength: 2,
+        delay: 100,
+        open: function(event, ui) { $("li:odd").css("background-color", "#ECE9D8"); },
+        select: function(event, ui) {
+                  $('input[name="[%- vc %]"]').val( ui.item.vc_name );
+                  $('input[name="[%- vc %]_id"]').val( ui.item.vc_id );
+                  $('input[name="old[%- vc %]"]').val( ui.item.vc_oldcustomer );
+                  $('input[name="select[%- vc %]"]').val( "1" );
+                  document.getElementById('update_button').click();
+                  return false;
+                }
+      });
+    </script>
+  </td>
+[%- ELSE %]
+  <th align="right">[% IF vc == 'customer' %][% 'Customer' | $T8 %][% ELSE %][% 'Vendor' | $T8 %][% END %]</th>
+  <td>
+    [%- INCLUDE 'generic/multibox.html'
+        name          = vc,
+        id            = vc,        
+        style         = 'width: 250px',
+        DATA          = List,
+        id_sub        = 'vc_keys',
+        label_key     = 'name',
+        select        = vc_select,
+        allow_textbox = 1,
+        onChange      = "document.getElementById('update_button').click();" -%]
+    <input type="button" value="[% 'Details (one letter abbreviation)' | $T8 %]" onclick="show_vc_details('[% HTML.escape(vc) %]')">
+  </td>
+[%- END %]
+

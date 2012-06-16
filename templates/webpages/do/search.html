@@ -31,20 +31,14 @@
   <p>
    <table>
     <tr>
-     <th align="right">[% IF is_customer %][% 'Customer' | $T8 %][% ELSE %][% 'Vendor' | $T8 %][% END %]</th>
-     <td colspan="3">
-      [%- UNLESS SHOW_VC_DROP_DOWN %]
-      <input type="text" name="[% HTML.escape(vc) %]" class="fixed_width">
-      [%- ELSE %]
-      <select name="[% vc %]" class="fixed_width">
-       <option></option>
-       [%- FOREACH row = ALL_VC %]
-       <option>[% HTML.escape(row.name) %]--[% HTML.escape(row.id) %]</option>
-       [%- END %]
-      </select>
-      <input type="hidden" name="select[% vc %]" value="1">
-      [%- END %]
-     </td>
+       [%- INCLUDE 'generic/vc_autocomplete.html' %]
+       <script type='text/javascript'>
+         $('input[id="[%- vc %]"]').autocomplete( "option", "select", 
+                           function(event, ui) {
+                        $('input[name="[%- vc %]"]').val( ui.item.vc_name+'--'+ui.item.vc_id );                       
+                        return false;}
+                       );
+       </script>
     </tr>
 
     <tr>

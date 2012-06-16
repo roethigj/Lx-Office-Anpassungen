@@ -81,8 +81,7 @@ sub search_invoice {
                                                                            'include_prefix' => 'l_',
                                                                            'include_value'  => 'Y');
   $form->{vc_keys}   = sub { "$_[0]->{name}--$_[0]->{id}" };
-  $form->{employee_labels} = sub { $_[0]->{"name"} || $_[0]->{"login"} };
-  $form->{salesman_labels} = $form->{employee_labels};
+  $form->{vc} = 'customer';
 
   $form->header;
   print $form->parse_html_template('vk/search_invoice', { %myconfig });
