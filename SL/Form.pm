@@ -548,12 +548,7 @@ sub header {
 EOT
   print "  $_\n" for @header;
   print <<EOT;
-<<<<<<< HEAD
   <meta name="robots" content="noindex,nofollow">
-=======
-  <meta name="robots" content="noindex,nofollow" />
-  <link rel="stylesheet" type="text/css" href="css/tabcontent.css" />
->>>>>>> roethigj/autocomplete
   <script type="text/javascript" src="js/tabcontent.js">
 
   /***********************************************
